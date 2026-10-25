@@ -22,6 +22,19 @@
   :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   [hidden] { display: none !important; }
 </style>
+<script>
+  // Theme skin (기본 / 홀덤). Runs before first paint so a saved skin never flashes the default colours.
+  // Also moves the browser/status-bar colour with it (iOS home-screen apps tint the status bar from theme-color).
+  window.__applyTheme = (name) => {
+    const holdem = name === 'holdem';
+    if (holdem) document.documentElement.dataset.skin = 'holdem'; else delete document.documentElement.dataset.skin;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      if (!m.dataset.base) m.dataset.base = m.content;
+      m.content = holdem ? '#4b1226' : m.dataset.base;
+    });
+  };
+  try { window.__applyTheme((JSON.parse(localStorage.getItem('holdem-timer:cfg:v2')) || {}).theme); } catch {}
+</script>
 </head>
 <body>
 <style>
@@ -42,6 +55,17 @@
     --green: #1fa66a;
     --green-weak: #e6f7ef;
     --track: #e5e8eb;
+    /* skin hooks: the default skin keeps these equal to the values above; the 홀덤 skin overrides them */
+    --bg-image: none;            /* painted over --bg */
+    --fg-bg: var(--fg);          /* text that sits directly on the page ground (not inside a card) */
+    --muted-bg: var(--muted);
+    --gold: var(--blue);         /* progress bars + time-chip accents */
+    --gold-weak: var(--blue-weak);
+    --primary-fg: #fff;          /* text on .btn.primary */
+    --primary-strong: #1b64da;   /* .btn.primary pressed */
+    --on-weak: #fff;             /* buttons inside the red urgent shot card */
+    --toast-bg: #191f28; --toast-fg: #fff;
+    --card-shadow: none;
     --safe-x: 0px; --safe-b: 0px; /* set by JS on iPhone landscape: the iframe never receives env() insets */
     --num: "Inter", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --body: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
@@ -62,10 +86,26 @@
     --green: #2fc27f; --green-weak: #1a3328; --track: #2c2c33;
     color-scheme: dark;
   }
+  /* 홀덤 skin: the app icon. Burgundy felt ground, cream playing-card surfaces, spade-ink text, burgundy + gold accents.
+     One look regardless of the system light/dark setting. Placed after the dark blocks so it wins at equal specificity. */
+  html:root[data-skin="holdem"] {
+    --bg: #4b1226;
+    --bg-image: radial-gradient(120% 90% at 50% 0%, #6e1e3f 0%, #4b1226 55%, #390c1d 100%);
+    --card: #f5eddb; --card-2: #eadfc6; --line: #dfd2b4; --track: #e4d7b8;
+    --fg: #2a2230; --fg-2: #574853; --muted: #8e7d85;
+    --fg-bg: #f6eedc; --muted-bg: #d6b5c1;
+    --blue: #7d1f42; --blue-weak: #f4dde5; --primary-fg: #f6eedc; --primary-strong: #611634;
+    --gold: #b58a2a; --gold-weak: #f1e3bd;
+    --red: #c3303d; --red-weak: #f9e0e0; --green: #1f7f4c; --green-weak: #e0efe4;
+    --on-weak: #f5eddb; --toast-bg: #2a2230; --toast-fg: #f6eedc;
+    --card-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 6px 18px rgba(30,4,16,.35);
+    color-scheme: light;
+  }
 
   html, body { height: 100%; }
+  html { background: var(--bg-image), var(--bg); } /* on the root so the canvas carries the gradient without background-attachment: fixed (iOS ignores it) */
   body {
-    margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body);
+    margin: 0; background: transparent; color: var(--fg); font-family: var(--body);
     overflow-x: hidden; overflow-y: auto; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
     touch-action: manipulation; line-height: 1.4;
   }
@@ -84,8 +124,8 @@
   /* ---- top ---- */
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
-  .chip { padding: 4px 10px; border-radius: 999px; background: var(--blue-weak); color: var(--blue); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; color: var(--fg-bg); }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--gold-weak); color: var(--gold); font-size: 13px; font-weight: 600; white-space: nowrap; }
   .chip.break { background: var(--green-weak); color: var(--green); }
   .icons { display: flex; gap: 6px; }
   .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--card); color: var(--fg-2); }
@@ -96,7 +136,7 @@
   /* ---- main ---- */
   .main { min-height: 0; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 12px; }
 
-  .card { background: var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; }
+  .card { background: var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; box-shadow: var(--card-shadow); }
 
   .clock { display: grid; grid-template-rows: auto 1fr auto; padding: 16px 18px 14px; gap: 8px; position: relative; }
   .clock-head { display: flex; justify-content: space-between; align-items: center; }
@@ -112,7 +152,7 @@
   .blinds-now { font-size: clamp(18px, 6cqw, 40px); font-weight: 700; letter-spacing: -0.02em; }
   .blinds-now small { font-size: .55em; color: var(--muted); font-weight: 600; margin-left: .4em; }
   .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; }
-  .bar i { display: block; height: 100%; width: 100%; background: var(--blue); border-radius: 999px; transition: width .25s linear, background .2s; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--gold); border-radius: 999px; transition: width .25s linear, background .2s; }
   .bar.warn i { background: var(--red); }
   .controls { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
   .btn {
@@ -120,8 +160,8 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .08s, background .15s;
   }
   .btn:active { transform: scale(.97); }
-  .btn.primary { background: var(--blue); color: #fff; }
-  .btn.primary:active { background: #1b64da; }
+  .btn.primary { background: var(--blue); color: var(--primary-fg); }
+  .btn.primary:active { background: var(--primary-strong); }
   .btn.soft { background: var(--card-2); color: var(--fg-2); }
   .btn.danger-soft { background: var(--red-weak); color: var(--red); }
   .btn.nav { font-size: 22px; color: var(--fg-2); background: var(--card-2); }
@@ -136,7 +176,7 @@
   .shot.armed .shot-num { color: var(--fg); }
   .shot.urgent .shot-num { color: var(--red); animation: pulse .5s steps(2) infinite; }
   .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; }
-  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--blue); border-radius: 999px; transition: width .2s linear; }
+  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--gold); border-radius: 999px; transition: width .2s linear; }
   .shot.urgent .shot-ring i { background: var(--red); }
   .shot .controls { grid-template-columns: 1fr 1fr; }
   .shot.paused .shot-num { color: var(--muted); }
@@ -148,12 +188,12 @@
   .clock-body:active { background: var(--card-2); }
   .shot-hint { color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 6px; }
   .shot.urgent .btn.primary { background: var(--red); }
-  .shot.urgent .btn.soft { background: #fff; }
-  .btn.chip { background: var(--blue-weak); color: var(--blue); }
-  .shot.urgent .btn.chip { background: #fff; }
+  .shot.urgent .btn.soft { background: var(--on-weak); }
+  .btn.chip { background: var(--gold-weak); color: var(--gold); }
+  .shot.urgent .btn.chip { background: var(--on-weak); }
   .shot-num-wrap { position: relative; }
   .chip-float {
-    position: absolute; left: 100%; top: 35%; margin-left: 8px; font-weight: 800; color: var(--blue);
+    position: absolute; left: 100%; top: 35%; margin-left: 8px; font-weight: 800; color: var(--gold);
     font-size: clamp(18px, 6cqw, 40px); opacity: 0; pointer-events: none; white-space: nowrap;
   }
   .chip-float.go { animation: floatUp .9s ease-out; }
@@ -163,7 +203,7 @@
 
   /* ---- info ---- */
   .info { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 8px; }
-  .cell { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+  .cell { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; box-shadow: var(--card-shadow); }
   .cell .k { color: var(--muted); font-size: 12px; font-weight: 500; }
   .cell .v { font-weight: 700; font-size: clamp(16px, 4.6vw, 26px); letter-spacing: -0.02em; line-height: 1.15; } /* long blinds wrap only at the slash: each number is a nowrap span */
   .cell .v .nb { white-space: nowrap; }
@@ -171,17 +211,18 @@
 
   /* ---- settings sheet ---- */
   .sheet {
-    position: fixed; inset: 0; z-index: 20; background: var(--bg);
+    position: fixed; inset: 0; z-index: 20; background: var(--bg-image), var(--bg);
     display: grid; grid-template-rows: auto 1fr auto;
     padding-top: env(safe-area-inset-top, 0px); padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-b));
     padding-left: max(16px, env(safe-area-inset-left, 0px), var(--safe-x)); padding-right: max(16px, env(safe-area-inset-right, 0px), var(--safe-x));
     -webkit-user-select: text; user-select: text;
   }
   .sheet-head { display: flex; justify-content: space-between; align-items: center; padding-block: 14px 10px; }
-  .sheet-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .sheet-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg-bg); }
   .text-btn { color: var(--fg-2); font-weight: 600; font-size: 15px; padding: 8px 4px; }
+  .sheet .text-btn { color: var(--fg-bg); opacity: .85; } /* sits on the ground, not in a card */
   .sheet-body { overflow: auto; min-height: 0; display: grid; gap: 14px; align-content: start; padding-bottom: 16px; }
-  .group { background: var(--card); border-radius: 20px; padding: 6px 18px; }
+  .group { background: var(--card); border-radius: 20px; padding: 6px 18px; box-shadow: var(--card-shadow); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; border-top: 1px solid var(--line); }
   .row:first-child { border-top: 0; }
   .row .k { font-size: 15px; font-weight: 500; }
@@ -200,11 +241,15 @@
   .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform .15s; }
   .switch input:checked + i { background: var(--blue); }
   .switch input:checked + i::after { transform: translateX(20px); }
+  /* segmented control (theme picker) */
+  .seg { display: flex; background: var(--card-2); border-radius: 12px; padding: 3px; flex: none; }
+  .seg button { padding: 7px 14px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--muted); transition: background .15s, color .15s; }
+  .seg button.on { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
   .group-title { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 4px 0; }
-  .group-title h3 { margin: 0; font-size: 15px; font-weight: 700; }
-  .group-title span { color: var(--muted); font-size: 12px; }
+  .group-title h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--fg-bg); }
+  .group-title span { color: var(--muted-bg); font-size: 12px; }
   .levels { display: grid; gap: 8px; }
-  .lv { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 10px; }
+  .lv { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 10px; box-shadow: var(--card-shadow); }
   .lv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .lv-top .n { font-weight: 700; font-size: 14px; }
   .lv-top .n.b { color: var(--green); }
@@ -221,12 +266,12 @@
   .lv-name input { width: 100%; text-align: left; font-family: var(--body); font-weight: 600; }
   .add-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .btn.outline { background: var(--card); color: var(--blue); height: 48px; font-size: 15px; }
-  .note { color: var(--muted); font-size: 13px; line-height: 1.55; max-width: 60ch; padding: 0 4px; margin: 0; }
+  .note { color: var(--muted-bg); font-size: 13px; line-height: 1.55; max-width: 60ch; padding: 0 4px; margin: 0; }
   .sheet-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-block: 10px 14px; }
   .sheet-foot .btn { height: 54px; }
   .toast {
     position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
-    background: #191f28; color: #fff; padding: 11px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    background: var(--toast-bg); color: var(--toast-fg); padding: 11px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
     z-index: 30; pointer-events: none; opacity: 0; transition: opacity .2s; white-space: nowrap; max-width: calc(100vw - 32px);
     overflow: hidden; text-overflow: ellipsis;
   }
@@ -357,6 +402,7 @@
       <div class="row"><label class="k" for="shotIn">샷클락<small>초 단위</small></label><input type="number" id="shotIn" min="5" max="300" inputmode="numeric"></div>
       <div class="row"><label class="k" for="chipIn">타임칩 시간<small>한 개 쓰면 추가되는 초</small></label><input type="number" id="chipIn" min="5" max="300" inputmode="numeric"></div>
       <div class="row"><span class="k">자동으로 다음 레벨<small>레벨이 끝나면 바로 이어서 진행</small></span><label class="switch"><input type="checkbox" id="autoAdvIn"><i></i></label></div>
+      <div class="row"><span class="k">테마<small>홀덤은 버건디 바탕에 카드 느낌</small></span><div class="seg" id="themeSeg" role="radiogroup" aria-label="테마"><button type="button" data-theme="default" role="radio">기본</button><button type="button" data-theme="holdem" role="radio">홀덤</button></div></div>
     </div>
 
     <div class="group-title"><h3>블라인드 구조</h3><span id="lvCount"></span></div>
@@ -391,7 +437,7 @@
     [15,10000,20000,20000],[15,20000,40000,40000],
   ].map(x => Array.isArray(x) ? { min: x[0], sb: x[1], bb: x[2], ante: x[3], brk: false }
                               : { min: x.min, sb: 0, bb: 0, ante: 0, brk: true, name: x.name });
-  const defaultCfg = () => ({ levels: DEFAULT_LEVELS.map(l => ({ ...l })), anteEqualsBB: true, shotSecs: 30, chipSecs: 30, sound: true, autoAdvance: true });
+  const defaultCfg = () => ({ levels: DEFAULT_LEVELS.map(l => ({ ...l })), anteEqualsBB: true, shotSecs: 30, chipSecs: 30, sound: true, autoAdvance: true, theme: 'default' });
 
   const load = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -652,8 +698,16 @@
   function openSheet() {
     draft = { levels: cfg.levels.map(l => ({ ...l })), anteEqualsBB: !!cfg.anteEqualsBB };
     $('anteBBIn').checked = draft.anteEqualsBB; $('shotIn').value = cfg.shotSecs; $('chipIn').value = cfg.chipSecs; $('autoAdvIn').checked = !!cfg.autoAdvance;
-    renderLevels(); sheet.hidden = false;
+    renderThemeSeg(); renderLevels(); sheet.hidden = false;
   }
+  // theme: applied and saved the moment it is tapped (like the sound toggle), so 닫기 without 저장 still keeps it
+  function renderThemeSeg() {
+    $('themeSeg').querySelectorAll('button').forEach(b => { const on = b.dataset.theme === (cfg.theme || 'default'); b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+  }
+  $('themeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-theme]'); if (!b || b.dataset.theme === (cfg.theme || 'default')) return;
+    cfg.theme = b.dataset.theme; save(KEY_CFG, cfg); window.__applyTheme(cfg.theme); renderThemeSeg(); vibrate(20);
+  });
   function renderLevels() {
     levelsEl.innerHTML = '';
     let n = 0;
