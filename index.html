@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>홀덤 타이머</title>
+<meta name="description" content="터치로 조작하는 홀덤 블라인드 타이머 — 샷클락, 타임칩, 레벨/앤티 편집">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f2f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101013" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="홀덤 타이머">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+  /* base reset (the artifact host used to provide this) + safe areas for the standalone web app */
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<style>
+  /* Layout: flat white cards on a soft grey ground, one screen. Timer card on top, shot clock card next,
+     three facts in a row. Every action is a visible pill button. */
+  :root {
+    --bg: #f2f4f6;
+    --card: #ffffff;
+    --card-2: #f2f4f6;
+    --line: #e5e8eb;
+    --fg: #191f28;
+    --fg-2: #4e5968;
+    --muted: #8b95a1;
+    --blue: #3182f6;
+    --blue-weak: #e8f3ff;
+    --red: #f04452;
+    --red-weak: #ffeef0;
+    --green: #1fa66a;
+    --green-weak: #e6f7ef;
+    --track: #e5e8eb;
+    --safe-x: 0px; --safe-b: 0px; /* set by JS on iPhone landscape: the iframe never receives env() insets */
+    --num: "Inter", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --body: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101013; --card: #1b1b20; --card-2: #26262c; --line: #2c2c33;
+      --fg: #f2f4f6; --fg-2: #c3c8cf; --muted: #8b95a1;
+      --blue: #4593fc; --blue-weak: #1c2b40; --red: #ff5a67; --red-weak: #3a2024;
+      --green: #2fc27f; --green-weak: #1a3328; --track: #2c2c33;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101013; --card: #1b1b20; --card-2: #26262c; --line: #2c2c33;
+    --fg: #f2f4f6; --fg-2: #c3c8cf; --muted: #8b95a1;
+    --blue: #4593fc; --blue-weak: #1c2b40; --red: #ff5a67; --red-weak: #3a2024;
+    --green: #2fc27f; --green-weak: #1a3328; --track: #2c2c33;
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body);
+    overflow-x: hidden; overflow-y: auto; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; line-height: 1.4;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .num { font-family: var(--num); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+  .app {
+    min-height: 100%; box-sizing: border-box;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 12px;
+    padding-block: 12px calc(16px + var(--safe-b));
+    padding-left: max(16px, env(safe-area-inset-left, 0px), var(--safe-x));
+    padding-right: max(16px, env(safe-area-inset-right, 0px), var(--safe-x));
+  }
+
+  /* ---- top ---- */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--blue-weak); color: var(--blue); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .chip.break { background: var(--green-weak); color: var(--green); }
+  .icons { display: flex; gap: 6px; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--card); color: var(--fg-2); }
+  .icon-btn.on { color: var(--blue); }
+  .icon-btn:active { background: var(--card-2); }
+  .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---- main ---- */
+  .main { min-height: 0; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 12px; }
+
+  .card { background: var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; }
+
+  .clock { display: grid; grid-template-rows: auto 1fr auto; padding: 16px 18px 14px; gap: 8px; position: relative; }
+  .clock-head { display: flex; justify-content: space-between; align-items: center; }
+  .label { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .state { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .state.run { color: var(--blue); } .state.run::before { background: var(--blue); }
+  .state.urgent { color: var(--red); } .state.urgent::before { background: var(--red); }
+  .clock-body { display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; padding-block: 6px; }
+  .time { font-weight: 800; font-size: clamp(48px, 16cqw, 140px); line-height: 1; letter-spacing: -0.04em; }
+  .time.warn { color: var(--red); }
+  .clock.paused .time { color: var(--fg-2); }
+  .blinds-now { font-size: clamp(18px, 6cqw, 40px); font-weight: 700; letter-spacing: -0.02em; }
+  .blinds-now small { font-size: .55em; color: var(--muted); font-weight: 600; margin-left: .4em; }
+  .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--blue); border-radius: 999px; transition: width .25s linear, background .2s; }
+  .bar.warn i { background: var(--red); }
+  .controls { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
+  .btn {
+    height: 52px; border-radius: 16px; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .08s, background .15s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--blue); color: #fff; }
+  .btn.primary:active { background: #1b64da; }
+  .btn.soft { background: var(--card-2); color: var(--fg-2); }
+  .btn.danger-soft { background: var(--red-weak); color: var(--red); }
+  .btn.nav { font-size: 22px; color: var(--fg-2); background: var(--card-2); }
+  .btn:disabled { opacity: .4; }
+
+  /* ---- shot clock ---- */
+  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; }
+  .shot.urgent { background: var(--red-weak); }
+  .shot-head { display: flex; justify-content: space-between; align-items: center; }
+  .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; }
+  .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); }
+  .shot.armed .shot-num { color: var(--fg); }
+  .shot.urgent .shot-num { color: var(--red); animation: pulse .5s steps(2) infinite; }
+  .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; }
+  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--blue); border-radius: 999px; transition: width .2s linear; }
+  .shot.urgent .shot-ring i { background: var(--red); }
+  .shot .controls { grid-template-columns: 1fr 1fr; }
+  .shot.paused .shot-num { color: var(--muted); }
+  .shot.paused .shot-ring i { background: var(--muted); }
+  .shot { cursor: pointer; }
+  .shot:active { background: var(--blue-weak); }
+  .shot.urgent:active { background: var(--red-weak); }
+  .clock-body { cursor: pointer; border-radius: 16px; }
+  .clock-body:active { background: var(--card-2); }
+  .shot-hint { color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 6px; }
+  .shot.urgent .btn.primary { background: var(--red); }
+  .shot.urgent .btn.soft { background: #fff; }
+  .btn.chip { background: var(--blue-weak); color: var(--blue); }
+  .shot.urgent .btn.chip { background: #fff; }
+  .shot-num-wrap { position: relative; }
+  .chip-float {
+    position: absolute; left: 100%; top: 35%; margin-left: 8px; font-weight: 800; color: var(--blue);
+    font-size: clamp(18px, 6cqw, 40px); opacity: 0; pointer-events: none; white-space: nowrap;
+  }
+  .chip-float.go { animation: floatUp .9s ease-out; }
+  @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-28px); } }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .shot.urgent .shot-num { animation: none; } .btn { transition: none; } .chip-float.go { animation: none; } }
+
+  /* ---- info ---- */
+  .info { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 8px; }
+  .cell { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+  .cell .k { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .cell .v { font-weight: 700; font-size: clamp(16px, 4.6vw, 26px); letter-spacing: -0.02em; line-height: 1.15; word-break: keep-all; overflow-wrap: normal; } /* long blinds wrap only at the slash, numbers never split */
+  .cell.break .v { color: var(--green); }
+
+  /* ---- settings sheet ---- */
+  .sheet {
+    position: fixed; inset: 0; z-index: 20; background: var(--bg);
+    display: grid; grid-template-rows: auto 1fr auto;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-b));
+    padding-left: max(16px, env(safe-area-inset-left, 0px), var(--safe-x)); padding-right: max(16px, env(safe-area-inset-right, 0px), var(--safe-x));
+    -webkit-user-select: text; user-select: text;
+  }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; padding-block: 14px 10px; }
+  .sheet-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .text-btn { color: var(--fg-2); font-weight: 600; font-size: 15px; padding: 8px 4px; }
+  .sheet-body { overflow: auto; min-height: 0; display: grid; gap: 14px; align-content: start; padding-bottom: 16px; }
+  .group { background: var(--card); border-radius: 20px; padding: 6px 18px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row .k { font-size: 15px; font-weight: 500; }
+  .row .k small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+  input[type=text], input[type=number] {
+    box-sizing: border-box; padding: 9px 12px; border-radius: 12px; border: 0;
+    background: var(--card-2); color: var(--fg); font: inherit; font-size: 16px; font-weight: 600; text-align: right;
+    font-family: var(--num); font-variant-numeric: tabular-nums; min-width: 0;
+    -moz-appearance: textfield; appearance: textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .row input { width: 120px; }
+  .switch { position: relative; width: 48px; height: 28px; flex: none; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; cursor: pointer; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--line); transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform .15s; }
+  .switch input:checked + i { background: var(--blue); }
+  .switch input:checked + i::after { transform: translateX(20px); }
+  .group-title { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 4px 0; }
+  .group-title h3 { margin: 0; font-size: 15px; font-weight: 700; }
+  .group-title span { color: var(--muted); font-size: 12px; }
+  .levels { display: grid; gap: 8px; }
+  .lv { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 10px; }
+  .lv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .lv-top .n { font-weight: 700; font-size: 14px; }
+  .lv-top .n.b { color: var(--green); }
+  .lv-top .ops { display: flex; gap: 2px; }
+  .lv-top .ops button { width: 32px; height: 32px; border-radius: 10px; color: var(--muted); font-size: 14px; display: grid; place-items: center; }
+  .lv-top .ops button:active { background: var(--card-2); color: var(--fg); }
+  .lv-top .brk { display: flex; align-items: center; gap: 8px; color: var(--fg-2); font-size: 13px; font-weight: 500; margin-left: auto; margin-right: 6px; }
+  .lv-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .lv-fields label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 500; min-width: 0; }
+  .lv-fields input { width: 100%; padding: 9px 8px; font-size: 15px; }
+  .lv.is-break .lv-fields label.blind { opacity: .35; }
+  .lv-fields label.locked { opacity: .55; }
+  .lv-name { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
+  .lv-name input { width: 100%; text-align: left; font-family: var(--body); font-weight: 600; }
+  .add-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn.outline { background: var(--card); color: var(--blue); height: 48px; font-size: 15px; }
+  .note { color: var(--muted); font-size: 13px; line-height: 1.55; max-width: 60ch; padding: 0 4px; margin: 0; }
+  .sheet-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-block: 10px 14px; }
+  .sheet-foot .btn { height: 54px; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    background: #191f28; color: #fff; padding: 11px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    z-index: 30; pointer-events: none; opacity: 0; transition: opacity .2s; white-space: nowrap; max-width: calc(100vw - 32px);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; }
+  /* Landscape: two columns and everything sized to the viewport height so nothing scrolls.
+     The timer bodies become size containers so the big digits scale by height as well as width. */
+  @media (min-aspect-ratio: 5/4) and (min-width: 640px) {
+    .app { height: 100%; min-height: 0; padding-block: 8px calc(10px + var(--safe-b)); gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .title h1 { font-size: 18px; }
+    .icon-btn { width: 36px; height: 36px; }
+    .main { grid-template-columns: 1.5fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; }
+    .card { min-height: 0; }
+    .clock, .shot { padding: 12px 16px 12px; gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .clock-body, .shot-body { container-type: size; min-height: 0; padding-block: 0; gap: 4px; }
+    .time { font-size: min(18cqw, 55cqh); }
+    .blinds-now { font-size: min(6cqw, 18cqh); }
+    .bar { height: 6px; }
+    .shot-num { font-size: min(34cqw, 70cqh); }
+    .shot-ring { margin-top: 6px; }
+    .shot-body { grid-template-rows: auto auto auto; }
+    @container (max-height: 120px) { .shot-hint { display: none; } }
+    .btn { height: 44px; font-size: 15px; }
+    .info { gap: 10px; grid-template-columns: 1.3fr .9fr 1.2fr; }
+    .cell { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px; border-radius: 14px; }
+    .cell .v { font-size: 18px; white-space: nowrap; }
+
+    /* short landscape (phone with browser bar + viewer header): tighten everything */
+    @media (max-height: 300px) {
+      .app { padding-block: 6px calc(6px + var(--safe-b)); gap: 6px; }
+      .title h1 { font-size: 16px; } .chip { font-size: 12px; padding: 3px 8px; }
+      .icon-btn { width: 32px; height: 32px; border-radius: 10px; } .icon-btn svg { width: 18px; height: 18px; }
+      .main { gap: 8px; }
+      .clock, .shot { padding: 10px 14px; gap: 6px; border-radius: 18px; }
+      .label, .state { font-size: 12px; }
+      .btn { height: 38px; font-size: 14px; border-radius: 12px; }
+      .controls { gap: 6px; grid-template-columns: 44px 1fr 44px; }
+      .bar, .shot-ring { height: 4px; } .shot-ring { margin-top: 4px; }
+      .info { gap: 6px; }
+      .cell { padding: 6px 12px; gap: 8px; border-radius: 12px; }
+      .cell .k { font-size: 11px; } .cell .v { font-size: 16px; }
+    }
+    /* very short (both bars showing): minimum viable sizes, page may scroll a little below this */
+    @media (max-height: 240px) {
+      .app { padding-block: 4px calc(4px + var(--safe-b)); gap: 4px; }
+      .top { min-height: 30px; } .title h1 { font-size: 15px; }
+      .icon-btn { width: 28px; height: 28px; } .icon-btn svg { width: 16px; height: 16px; }
+      .main { gap: 6px; }
+      .clock, .shot { padding: 8px 12px; gap: 4px; border-radius: 14px; }
+      .label, .state { font-size: 11px; }
+      .btn { height: 34px; font-size: 13px; }
+      .controls { grid-template-columns: 40px 1fr 40px; }
+      .info { gap: 4px; }
+      .cell { padding: 4px 10px; border-radius: 10px; }
+      .cell .v { font-size: 14px; }
+    }
+  }
+</style>
+
+<div class="app" id="app">
+  <div class="top">
+    <div class="title">
+      <h1 id="levelTag">레벨 1</h1>
+      <span class="chip" id="chip">100 / 200</span>
+    </div>
+    <div class="icons">
+      <button class="icon-btn on" id="soundBtn" aria-label="소리 켜기/끄기" title="소리">
+        <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path id="soundWave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+      <button class="icon-btn" id="fsBtn" aria-label="전체화면" title="전체화면">
+        <svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+      </button>
+      <button class="icon-btn" id="setBtn" aria-label="설정" title="설정">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <section class="card shot" id="shot" aria-label="샷클락">
+      <div class="shot-head">
+        <span class="label">샷클락</span>
+        <span class="state" id="shotState">대기</span>
+      </div>
+      <div class="shot-body" id="shotTap">
+        <div class="shot-num-wrap"><div class="shot-num num" id="shotNum">30</div><span class="chip-float num" id="chipFloat" aria-hidden="true">+30</span></div>
+        <div class="shot-ring"><i id="shotBar"></i></div>
+        <div class="shot-hint" id="shotHint">카드를 누르면 30초 시작</div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="shotBtn">시작</button>
+        <button class="btn chip" id="chipBtn">타임칩 +30</button>
+      </div>
+    </section>
+    <section class="card clock paused" id="clock" aria-label="레벨 타이머">
+      <div class="clock-head">
+        <span class="label">남은 시간</span>
+        <span class="state" id="state">일시정지</span>
+      </div>
+      <div class="clock-body" id="clockTap">
+        <div class="time num" id="time">15:00</div>
+        <div class="blinds-now num" id="blindsNow">100 / 200</div>
+        <div class="bar" id="bar"><i id="barFill"></i></div>
+      </div>
+      <div class="controls">
+        <button class="btn nav" id="prevBtn" aria-label="이전 레벨">‹</button>
+        <button class="btn primary" id="playBtn">시작</button>
+        <button class="btn nav" id="nextBtn" aria-label="다음 레벨">›</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="info">
+    <div class="cell" id="cellBlinds"><span class="k">블라인드</span><span class="v num" id="vBlinds">1,000 / 2,000</span></div>
+    <div class="cell"><span class="k">앤티</span><span class="v num" id="vAnte">2,000</span></div>
+    <div class="cell" id="cellNext"><span class="k">다음 레벨</span><span class="v num" id="vNext">200 / 400</span></div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-head">
+    <h2>설정</h2>
+    <button class="text-btn" id="closeBtn">닫기</button>
+  </div>
+  <div class="sheet-body">
+    <div class="group">
+      <div class="row"><span class="k">앤티는 빅블라인드와 같게<small>끄면 레벨마다 앤티를 직접 입력</small></span><label class="switch"><input type="checkbox" id="anteBBIn"><i></i></label></div>
+      <div class="row"><label class="k" for="shotIn">샷클락<small>초 단위</small></label><input type="number" id="shotIn" min="5" max="300" inputmode="numeric"></div>
+      <div class="row"><label class="k" for="chipIn">타임칩 시간<small>한 개 쓰면 추가되는 초</small></label><input type="number" id="chipIn" min="5" max="300" inputmode="numeric"></div>
+      <div class="row"><span class="k">자동으로 다음 레벨<small>레벨이 끝나면 바로 이어서 진행</small></span><label class="switch"><input type="checkbox" id="autoAdvIn"><i></i></label></div>
+    </div>
+
+    <div class="group-title"><h3>블라인드 구조</h3><span id="lvCount"></span></div>
+    <div class="levels" id="levels"></div>
+    <div class="add-row">
+      <button class="btn outline" id="addLvBtn">+ 레벨 추가</button>
+      <button class="btn outline" id="addBrkBtn">+ 브레이크 추가</button>
+    </div>
+
+    <p class="note">설정은 이 기기의 브라우저에만 저장돼요. 소리는 샷클락 10초부터 매초(마지막 3초는 두 번)·종료, 레벨 1분 전·종료, 시작·타임칩 때 나요. 스피커 아이콘을 누르면 테스트음, 길게 누르면 끄기/켜기예요. 아이폰은 측면 무음 스위치가 켜져 있으면 소리가 안 나요.</p>
+    <button class="text-btn" id="resetDefaultsBtn" style="justify-self:center">기본값으로 되돌리기</button>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn soft" id="resetGameBtn">1레벨부터 다시</button>
+    <button class="btn primary" id="saveBtn">저장</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const KEY_CFG = 'holdem-timer:cfg:v2';
+  const KEY_RUN = 'holdem-timer:run:v2';
+
+  // [minutes, SB, BB, ante] or a break: { name, min }
+  const DEFAULT_LEVELS = [
+    [15,1000,2000,2000],[15,2000,4000,4000],[15,3000,6000,6000],[15,5000,10000,10000],
+    { name: '칩 리무브 · 애드온', min: 10 },
+    [15,10000,20000,20000],[15,20000,40000,40000],
+  ].map(x => Array.isArray(x) ? { min: x[0], sb: x[1], bb: x[2], ante: x[3], brk: false }
+                              : { min: x.min, sb: 0, bb: 0, ante: 0, brk: true, name: x.name });
+  const defaultCfg = () => ({ levels: DEFAULT_LEVELS.map(l => ({ ...l })), anteEqualsBB: true, shotSecs: 30, chipSecs: 30, sound: true, autoAdvance: true });
+
+  const load = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+  let cfg = Object.assign(defaultCfg(), load(KEY_CFG) || {});
+  if (!Array.isArray(cfg.levels) || !cfg.levels.length) cfg.levels = defaultCfg().levels;
+
+  let run = Object.assign({ idx: 0, remaining: cfg.levels[0].min * 60000, running: false, at: 0 }, load(KEY_RUN) || {});
+  run.idx = Math.min(Math.max(0, run.idx | 0), cfg.levels.length - 1);
+  if (run.running) { run.remaining = Math.max(0, run.remaining - (Date.now() - run.at)); run.at = Date.now(); }
+
+  // total = seconds the bar represents for this hand (grows with each time chip); chips = chips used this hand
+  // paused = stopped mid-hand with `left` ms frozen; the toggle button resumes it
+  let shot = { running: false, paused: false, left: 0, endAt: 0, lastBeep: -1, done: false, total: 0, chips: 0 };
+
+  // ---------- audio ----------
+  let ac = null;
+  function audio() {
+    if (!cfg.sound) return null;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch { return null; }
+  }
+  function beep(freq = 880, dur = 0.12, when = 0, gain = 0.25, type = 'sine') {
+    const c = audio(); if (!c) return;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = freq;
+    const t = c.currentTime + when;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const sfx = {
+    levelEnd: () => { beep(660, .18, 0, .3, 'triangle'); beep(880, .18, .22, .3, 'triangle'); beep(1100, .5, .44, .35, 'triangle'); },
+    minuteLeft: () => { beep(520, .1, 0, .25, 'triangle'); beep(520, .1, .15, .25, 'triangle'); },
+    shotWarn: () => beep(900, .07, 0, .22, 'triangle'),
+    shotEnd: () => beep(300, .5, 0, .35, 'sawtooth'),
+    tick: () => beep(1200, .03, 0, .1),
+    start: () => beep(880, .06, 0, .2, 'triangle'),
+    test: () => { beep(660, .1, 0, .3, 'triangle'); beep(990, .14, .12, .3, 'triangle'); },
+  };
+  const vibrate = (p) => { if (navigator.vibrate) { try { navigator.vibrate(p); } catch {} } };
+
+  // ---------- helpers ----------
+  const fmtNum = (n) => Number(n || 0).toLocaleString('en-US');
+  const anteOf = (l) => cfg.anteEqualsBB ? l.bb : l.ante;
+  const breakName = (l) => (l.name || '').trim() || '휴식';
+  const blindsStr = (l) => l.brk ? `${breakName(l)} ${l.min}분` : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+  const mmss = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+  const levelNumber = (idx) => cfg.levels.slice(0, idx + 1).filter(l => !l.brk).length;
+  const curRemaining = () => run.running ? Math.max(0, run.remaining - (Date.now() - run.at)) : run.remaining;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 1600); }
+
+  // ---------- render ----------
+  const el = {
+    levelTag: $('levelTag'), chip: $('chip'), time: $('time'), blindsNow: $('blindsNow'), clock: $('clock'), state: $('state'),
+    bar: $('bar'), barFill: $('barFill'), playBtn: $('playBtn'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
+    vBlinds: $('vBlinds'), vAnte: $('vAnte'), vNext: $('vNext'), cellNext: $('cellNext'), cellBlinds: $('cellBlinds'),
+    shot: $('shot'), shotNum: $('shotNum'), shotBar: $('shotBar'), shotState: $('shotState'), shotHint: $('shotHint'), shotBtn: $('shotBtn'),
+    chipBtn: $('chipBtn'), chipFloat: $('chipFloat'),
+    soundBtn: $('soundBtn'), fsBtn: $('fsBtn'),
+  };
+  let lastShownSec = -1, lastMinuteBeepIdx = -1;
+
+  function renderStatic() {
+    const l = cfg.levels[run.idx];
+    const ante = anteOf(l);
+    el.levelTag.textContent = l.brk ? breakName(l) : `레벨 ${levelNumber(run.idx)}`;
+    el.chip.textContent = l.brk ? `${l.min}분` : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+    el.chip.classList.toggle('break', !!l.brk);
+    el.blindsNow.textContent = l.brk ? breakName(l) : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+    el.vBlinds.textContent = l.brk ? '휴식' : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+    el.cellBlinds.classList.toggle('break', !!l.brk);
+    el.vAnte.textContent = l.brk || !ante ? '—' : fmtNum(ante);
+    const n = cfg.levels[run.idx + 1];
+    el.vNext.textContent = n ? blindsStr(n) : '마지막';
+    el.cellNext.classList.toggle('break', !!(n && n.brk));
+    el.playBtn.textContent = run.running ? '일시정지' : (curRemaining() <= 0 ? '다시 시작' : '시작');
+    el.playBtn.classList.toggle('soft', run.running); el.playBtn.classList.toggle('primary', !run.running);
+    el.prevBtn.disabled = run.idx === 0; el.nextBtn.disabled = run.idx >= cfg.levels.length - 1;
+    el.clock.classList.toggle('paused', !run.running);
+    el.soundBtn.classList.toggle('on', !!cfg.sound);
+    $('soundWave').style.display = cfg.sound ? '' : 'none';
+    el.chipBtn.textContent = `타임칩 +${cfg.chipSecs}`;
+    el.chipFloat.textContent = `+${cfg.chipSecs}`;
+  }
+
+  function renderTime(force) {
+    const l = cfg.levels[run.idx];
+    const total = Math.max(1000, l.min * 60000);
+    const rem = curRemaining();
+    const sec = Math.ceil(rem / 1000);
+    if (sec !== lastShownSec || force) {
+      lastShownSec = sec;
+      el.time.textContent = mmss(rem);
+      const urgent = rem <= 60000 && rem > 0 && !l.brk;
+      el.time.classList.toggle('warn', urgent);
+      el.bar.classList.toggle('warn', urgent);
+      el.barFill.style.width = `${Math.max(0, Math.min(100, (rem / total) * 100))}%`;
+      el.state.textContent = run.running ? (urgent ? '곧 레벨 종료' : '진행 중') : '일시정지';
+      el.state.className = 'state' + (run.running ? (urgent ? ' urgent' : ' run') : '');
+      if (run.running && sec === 60 && lastMinuteBeepIdx !== run.idx && !l.brk) { lastMinuteBeepIdx = run.idx; sfx.minuteLeft(); }
+    }
+    if (run.running && rem <= 0) onLevelEnd();
+  }
+
+  function setShotBtn(text, primary) { el.shotBtn.textContent = text; el.shotBtn.classList.toggle('primary', primary); el.shotBtn.classList.toggle('soft', !primary); }
+  function renderShot() {
+    const chipNote = shot.chips ? ` · 타임칩 ${shot.chips}회` : '';
+    if (shot.paused) {
+      const sec = Math.ceil(shot.left / 1000);
+      el.shotNum.textContent = sec; el.shotBar.style.width = `${Math.min(100, (shot.left / (shot.total * 1000)) * 100)}%`;
+      el.shot.classList.remove('armed', 'urgent'); el.shot.classList.add('paused');
+      el.shotState.textContent = '중지됨' + chipNote; el.shotState.className = 'state';
+      el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 다시 시작`;
+      setShotBtn('이어서', true);
+      return;
+    }
+    el.shot.classList.remove('paused');
+    if (!shot.running) {
+      el.shotNum.textContent = shot.done ? '0' : cfg.shotSecs; el.shotBar.style.width = '0%';
+      el.shot.classList.remove('armed', 'urgent');
+      el.shotState.textContent = shot.done ? '시간 종료' : '대기'; el.shotState.className = 'state' + (shot.done ? ' urgent' : '');
+      el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초 시작`;
+      setShotBtn('시작', true);
+      return;
+    }
+    setShotBtn('중지', false);
+    const rem = Math.max(0, shot.endAt - Date.now());
+    const sec = Math.ceil(rem / 1000);
+    el.shotNum.textContent = sec;
+    el.shotBar.style.width = `${Math.min(100, (rem / (shot.total * 1000)) * 100)}%`;
+    el.shot.classList.add('armed'); el.shot.classList.toggle('urgent', sec <= 10);
+    el.shotState.textContent = (sec <= 10 ? '서두르세요' : '진행 중') + chipNote; el.shotState.className = 'state' + (sec <= 10 ? ' urgent' : ' run');
+    el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 리셋`;
+    if (sec !== shot.lastBeep) {
+      shot.lastBeep = sec;
+      // final countdown: a beep every second from 10, rising in pitch; 3-2-1 double up
+      if (sec > 0 && sec <= 10) {
+        const f = 700 + (10 - sec) * 60;
+        beep(f, .08, 0, .25, 'triangle');
+        if (sec <= 3) beep(f, .08, .14, .25, 'triangle');
+        vibrate(sec <= 3 ? 60 : 25);
+      }
+    }
+    if (rem <= 0) { shot.running = false; shot.done = true; sfx.shotEnd(); vibrate([150, 80, 150]); renderShot(); }
+  }
+
+  // ---------- level control ----------
+  function setLevel(idx, { autoStart } = {}) {
+    idx = Math.min(Math.max(0, idx), cfg.levels.length - 1);
+    run.idx = idx; run.remaining = cfg.levels[idx].min * 60000; run.at = Date.now();
+    if (autoStart !== undefined) run.running = autoStart;
+    lastShownSec = -1; persistRun(); renderStatic(); renderTime(true);
+  }
+  function onLevelEnd() {
+    sfx.levelEnd(); vibrate([200, 100, 200]);
+    if (run.idx < cfg.levels.length - 1) setLevel(run.idx + 1, { autoStart: !!cfg.autoAdvance });
+    else { run.running = false; run.remaining = 0; persistRun(); renderStatic(); renderTime(true); toast('마지막 레벨이 끝났어요'); }
+  }
+  function togglePause() {
+    audio();
+    if (run.running) { run.remaining = curRemaining(); run.running = false; }
+    else { if (run.remaining <= 0) run.remaining = cfg.levels[run.idx].min * 60000; run.at = Date.now(); run.running = true; requestWake(); sfx.start(); }
+    persistRun(); renderStatic(); renderTime(true);
+  }
+  function startShot() { audio(); sfx.start(); shot.running = true; shot.paused = false; shot.done = false; shot.endAt = Date.now() + cfg.shotSecs * 1000; shot.total = cfg.shotSecs; shot.chips = 0; shot.lastBeep = -1; requestWake(); renderShot(); }
+  function pauseShot() { if (!shot.running) return; shot.left = Math.max(0, shot.endAt - Date.now()); shot.running = false; shot.paused = true; renderShot(); }
+  function resumeShot() { if (!shot.paused) return; audio(); shot.endAt = Date.now() + shot.left; shot.paused = false; shot.running = true; shot.lastBeep = -1; requestWake(); renderShot(); }
+  // one button: 시작 (idle) → 중지 (running) → 이어서 (paused)
+  function toggleShot() { if (shot.running) pauseShot(); else if (shot.paused) resumeShot(); else startShot(); }
+  // time chip: extend the running shot clock (a paused one resumes with the extra time); idle or expired starts fresh with the chip's seconds
+  function useTimeChip() {
+    audio();
+    if (shot.paused) { shot.left += cfg.chipSecs * 1000; shot.total += cfg.chipSecs; shot.chips++; resumeShot(); }
+    else if (shot.running) { shot.endAt += cfg.chipSecs * 1000; shot.total += cfg.chipSecs; shot.chips++; }
+    else { shot.running = true; shot.done = false; shot.endAt = Date.now() + cfg.chipSecs * 1000; shot.total = cfg.chipSecs; shot.chips = 1; requestWake(); }
+    shot.lastBeep = -1;
+    beep(700, .08, 0, .22, 'triangle'); beep(1000, .12, .09, .22, 'triangle'); vibrate(40);
+    el.chipFloat.classList.remove('go'); void el.chipFloat.offsetWidth; el.chipFloat.classList.add('go');
+    renderShot();
+  }
+  function persistRun() { save(KEY_RUN, run); }
+
+  // ---------- loop ----------
+  let lastPersist = 0;
+  function loop() {
+    renderTime(false); if (shot.running) renderShot();
+    const now = Date.now();
+    if (run.running && now - lastPersist > 5000) { lastPersist = now; persistRun(); }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- wiring ----------
+  el.playBtn.addEventListener('click', togglePause);
+  el.prevBtn.addEventListener('click', () => { audio(); setLevel(run.idx - 1); });
+  el.nextBtn.addEventListener('click', () => { audio(); setLevel(run.idx + 1); });
+  // whole shot-clock card starts/resets, except its two buttons; big level digits pause/resume
+  el.shot.addEventListener('click', (e) => { if (!e.target.closest('button')) startShot(); });
+  $('clockTap').addEventListener('click', togglePause);
+  el.shotBtn.addEventListener('click', toggleShot);
+  el.chipBtn.addEventListener('click', useTimeChip);
+
+  // speaker icon: tap = test sound (so people can check their volume / iPhone mute switch), long-press = mute toggle
+  let soundHold = 0, soundHeld = false;
+  const soundDown = () => { soundHeld = false; soundHold = setTimeout(() => { soundHeld = true; cfg.sound = !cfg.sound; save(KEY_CFG, cfg); renderStatic(); if (cfg.sound) { audio(); sfx.test(); } toast(cfg.sound ? '소리 켜짐' : '소리 꺼짐'); vibrate(30); }, 600); };
+  const soundUp = () => { clearTimeout(soundHold); };
+  el.soundBtn.addEventListener('pointerdown', soundDown);
+  el.soundBtn.addEventListener('pointerup', soundUp);
+  el.soundBtn.addEventListener('pointercancel', soundUp);
+  el.soundBtn.addEventListener('pointerleave', soundUp);
+  el.soundBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.soundBtn.addEventListener('click', () => {
+    if (soundHeld) return;
+    if (!cfg.sound) { cfg.sound = true; save(KEY_CFG, cfg); renderStatic(); }
+    audio(); sfx.test();
+    toast(/iPhone|iPad/.test(navigator.userAgent) ? '테스트음 · 안 들리면 무음 스위치를 확인하세요' : '테스트음 재생');
+  });
+  el.fsBtn.addEventListener('click', async () => {
+    const d = document.documentElement;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (d.requestFullscreen) await d.requestFullscreen();
+      else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+      else toast('이 브라우저는 전체화면을 지원하지 않아요');
+    } catch { toast('전체화면을 열 수 없어요'); }
+  });
+
+  // ---------- wake lock ----------
+  let wake = null;
+  async function requestWake() {
+    if (!('wakeLock' in navigator) || wake) return;
+    try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch { wake = null; }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lastShownSec = -1; if (run.running || shot.running) requestWake(); } });
+
+  // ---------- settings ----------
+  const sheet = $('sheet'), levelsEl = $('levels');
+  let draft = null;
+  function openSheet() {
+    draft = { levels: cfg.levels.map(l => ({ ...l })), anteEqualsBB: !!cfg.anteEqualsBB };
+    $('anteBBIn').checked = draft.anteEqualsBB; $('shotIn').value = cfg.shotSecs; $('chipIn').value = cfg.chipSecs; $('autoAdvIn').checked = !!cfg.autoAdvance;
+    renderLevels(); sheet.hidden = false;
+  }
+  function renderLevels() {
+    levelsEl.innerHTML = '';
+    let n = 0;
+    const total = draft.levels.reduce((a, l) => a + (l.min | 0), 0);
+    $('lvCount').textContent = `${draft.levels.filter(l => !l.brk).length}레벨 · 총 ${Math.floor(total / 60)}시간 ${total % 60}분`;
+    draft.levels.forEach((l, i) => {
+      if (!l.brk) n++;
+      const row = document.createElement('div');
+      row.className = 'lv' + (l.brk ? ' is-break' : '');
+      const anteLocked = draft.anteEqualsBB && !l.brk;
+      row.innerHTML = `
+        <div class="lv-top">
+          <span class="n ${l.brk ? 'b' : ''}">${l.brk ? '브레이크' : `레벨 ${n}`}</span>
+          <label class="brk"><span>브레이크</span><span class="switch" style="width:40px;height:24px"><input type="checkbox" data-k="brk" ${l.brk ? 'checked' : ''}><i style="--s:1"></i></span></label>
+          <span class="ops">
+            <button type="button" data-op="up" aria-label="위로">▲</button>
+            <button type="button" data-op="down" aria-label="아래로">▼</button>
+            <button type="button" data-op="del" aria-label="삭제">✕</button>
+          </span>
+        </div>
+        ${l.brk ? `<label class="lv-name">이름<input type="text" data-k="name" value="${(l.name || '').replace(/"/g, '&quot;')}" placeholder="휴식"></label>` : ''}
+        <div class="lv-fields">
+          <label>분<input type="number" min="1" max="999" inputmode="numeric" data-k="min" value="${l.min}"></label>
+          <label class="blind">SB<input type="number" min="0" step="100" inputmode="numeric" data-k="sb" value="${l.sb}" ${l.brk ? 'disabled' : ''}></label>
+          <label class="blind">BB<input type="number" min="0" step="100" inputmode="numeric" data-k="bb" value="${l.bb}" ${l.brk ? 'disabled' : ''}></label>
+          <label class="blind ${anteLocked ? 'locked' : ''}">앤티${anteLocked ? ' = BB' : ''}<input type="number" min="0" step="100" inputmode="numeric" data-k="ante" value="${anteLocked ? l.bb : l.ante}" ${l.brk || anteLocked ? 'disabled' : ''}></label>
+        </div>`;
+      row.querySelectorAll('input').forEach(inp => {
+        inp.id = `lv-${i}-${inp.dataset.k}`;
+        inp.addEventListener('change', () => {
+          if (inp.type === 'checkbox') { l.brk = inp.checked; renderLevels(); }
+          else if (inp.type === 'text') l.name = inp.value;
+          else {
+            l[inp.dataset.k] = Math.max(0, parseInt(inp.value, 10) || 0);
+            if (inp.dataset.k === 'bb' && anteLocked) row.querySelector('[data-k="ante"]').value = l.bb;
+          }
+        });
+      });
+      row.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        const op = b.dataset.op;
+        if (op === 'del') { if (draft.levels.length > 1) draft.levels.splice(i, 1); }
+        else if (op === 'up' && i > 0) [draft.levels[i - 1], draft.levels[i]] = [draft.levels[i], draft.levels[i - 1]];
+        else if (op === 'down' && i < draft.levels.length - 1) [draft.levels[i + 1], draft.levels[i]] = [draft.levels[i], draft.levels[i + 1]];
+        renderLevels();
+      }));
+      levelsEl.appendChild(row);
+    });
+  }
+  // the small switch inside level rows reuses .switch; shrink the knob for the 24px variant
+  const style = document.createElement('style');
+  style.textContent = '.lv-top .switch i::after{width:18px;height:18px}.lv-top .switch input:checked+i::after{transform:translateX(16px)}.lv-top .switch input:checked+i{background:var(--green)}';
+  document.head.appendChild(style);
+
+  $('setBtn').addEventListener('click', openSheet);
+  $('closeBtn').addEventListener('click', () => { sheet.hidden = true; });
+  $('addLvBtn').addEventListener('click', () => {
+    const last = [...draft.levels].reverse().find(l => !l.brk) || { min: 15, sb: 500, bb: 1000, ante: 1000 };
+    draft.levels.push({ min: last.min, sb: last.sb * 2, bb: last.bb * 2, ante: last.ante * 2, brk: false }); renderLevels();
+    levelsEl.lastElementChild.scrollIntoView({ block: 'nearest' });
+  });
+  $('addBrkBtn').addEventListener('click', () => { draft.levels.push({ min: 10, sb: 0, bb: 0, ante: 0, brk: true, name: '휴식' }); renderLevels(); levelsEl.lastElementChild.scrollIntoView({ block: 'nearest' }); });
+  $('anteBBIn').addEventListener('change', () => { draft.anteEqualsBB = $('anteBBIn').checked; renderLevels(); });
+  $('resetDefaultsBtn').addEventListener('click', () => { const d = defaultCfg(); draft.levels = d.levels; draft.anteEqualsBB = d.anteEqualsBB; $('anteBBIn').checked = d.anteEqualsBB; $('shotIn').value = d.shotSecs; $('chipIn').value = d.chipSecs; $('autoAdvIn').checked = true; renderLevels(); toast('기본값으로 되돌렸어요. 저장을 누르면 적용돼요'); });
+  $('resetGameBtn').addEventListener('click', () => { applyDraft(); setLevel(0, { autoStart: false }); shot.running = false; shot.paused = false; shot.done = false; shot.chips = 0; renderShot(); sheet.hidden = true; toast('1레벨부터 다시 시작해요'); });
+  $('saveBtn').addEventListener('click', () => { applyDraft(); sheet.hidden = true; toast('저장했어요'); });
+  function applyDraft() {
+    draft.levels.forEach(l => { l.min = Math.max(1, l.min | 0); });
+    const oldTotal = cfg.levels[run.idx].min * 60000;
+    const untouched = !run.running && run.remaining === oldTotal;
+    cfg.levels = draft.levels; cfg.anteEqualsBB = $('anteBBIn').checked; cfg.autoAdvance = $('autoAdvIn').checked;
+    cfg.shotSecs = Math.min(300, Math.max(5, parseInt($('shotIn').value, 10) || 30));
+    cfg.chipSecs = Math.min(300, Math.max(5, parseInt($('chipIn').value, 10) || 30));
+    save(KEY_CFG, cfg);
+    run.idx = Math.min(run.idx, cfg.levels.length - 1);
+    const total = cfg.levels[run.idx].min * 60000;
+    if (untouched || curRemaining() > total) { run.remaining = total; run.at = Date.now(); }
+    lastShownSec = -1; persistRun(); renderStatic(); renderTime(true); renderShot();
+  }
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', (e) => {
+    if (!sheet.hidden || e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePause(); }
+    else if (e.key === 'ArrowRight') setLevel(run.idx + 1);
+    else if (e.key === 'ArrowLeft') setLevel(run.idx - 1);
+    else if (e.key === 'Enter') startShot();
+    else if (e.key.toLowerCase() === 's') toggleShot();
+    else if (e.key === 'Escape') pauseShot();
+    else if (e.key.toLowerCase() === 't') useTimeChip();
+  });
+
+  // iPhone landscape inside the claude.ai frame: env(safe-area-inset-*) is 0 here, so pad for the notch ourselves
+  function applySafeArea() {
+    const landscape = innerWidth > innerHeight;
+    const iPhone = /iPhone/.test(navigator.userAgent);
+    document.documentElement.style.setProperty('--safe-x', iPhone && landscape ? '48px' : '0px');
+    document.documentElement.style.setProperty('--safe-b', iPhone && landscape ? '12px' : '0px');
+  }
+  applySafeArea();
+  window.addEventListener('resize', applySafeArea);
+  window.addEventListener('orientationchange', () => setTimeout(applySafeArea, 50));
+
+  renderStatic(); renderTime(true); renderShot();
+  if (run.running) requestWake();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "홀덤 타이머",
+  "short_name": "홀덤 타이머",
+  "description": "터치로 조작하는 홀덤 블라인드 타이머 — 샷클락, 타임칩, 레벨/앤티 편집",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f4f6",
+  "theme_color": "#3182f6",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
