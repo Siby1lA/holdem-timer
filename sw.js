@@ -1,6 +1,6 @@
 // Network-first service worker: always try the live page so updates show up on the next open,
 // fall back to the cached copy when the bar's wifi drops.
-const CACHE = 'holdem-timer-v2';
+const CACHE = 'holdem-timer-v3';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
