@@ -505,7 +505,8 @@
 
   let run = Object.assign({ idx: 0, remaining: cfg.levels[0].min * 60000, running: false, at: 0 }, load(KEY_RUN) || {});
   run.idx = Math.min(Math.max(0, run.idx | 0), cfg.levels.length - 1);
-  if (run.running) { run.remaining = Math.max(0, run.remaining - (Date.now() - run.at)); run.at = Date.now(); }
+  // keep a negative remaining when the page was reloaded past the level's end: onLevelEnd uses the overshoot to skip ahead the right number of levels
+  if (run.running) { run.remaining = run.remaining - (Date.now() - run.at); run.at = Date.now(); }
 
   // total = seconds the bar represents for this hand (grows with each time chip); chips = chips used this hand
   // paused = stopped mid-hand with `left` ms frozen; the toggle button resumes it
@@ -533,7 +534,7 @@
   function audio() {
     if (!cfg.sound) return null;
     unlockSilentMode();
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch { return null; }
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state !== 'running') ac.resume(); return ac; } catch { return null; }
   }
   function beep(freq = 880, dur = 0.12, when = 0, gain = 0.25, type = 'sine') {
     const c = audio(); if (!c) return;
@@ -623,35 +624,37 @@
   // card fill = fraction of time left (clamped: a time chip can push the shot clock past 1 briefly)
   function setFill(card, p) { card.style.setProperty('--fill-p', Math.max(0, Math.min(1, p || 0)).toFixed(4)); }
   const setShotProgress = (p) => setFill(el.shot, p);
-  function setShotBtn(text, primary) { el.shotBtn.textContent = text; el.shotBtn.classList.toggle('primary', primary); el.shotBtn.classList.toggle('soft', !primary); }
+  // write text only when it changes: replacing the text node under a finger (renderShot runs every frame) makes iOS drop the tap
+  const setText = (node, text) => { text = String(text); if (node.textContent !== text) node.textContent = text; };
+  function setShotBtn(text, primary) { setText(el.shotBtn, text); el.shotBtn.classList.toggle('primary', primary); el.shotBtn.classList.toggle('soft', !primary); }
   function renderShot() {
     const chipNote = shot.chips ? ` · 타임칩 ${shot.chips}회` : '';
     if (shot.paused) {
       const sec = Math.ceil(shot.left / 1000);
-      el.shotNum.textContent = sec; setShotProgress(shot.left / (shot.total * 1000));
+      setText(el.shotNum, sec); setShotProgress(shot.left / (shot.total * 1000));
       el.shot.classList.remove('armed', 'urgent'); el.shot.classList.add('paused');
-      el.shotState.textContent = '중지됨' + chipNote; el.shotState.className = 'state';
-      el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 다시 시작`;
+      setText(el.shotState, '중지됨' + chipNote); el.shotState.className = 'state';
+      setText(el.shotHint, `카드를 누르면 ${cfg.shotSecs}초로 다시 시작`);
       setShotBtn('이어서', true);
       return;
     }
     el.shot.classList.remove('paused');
     if (!shot.running) {
-      el.shotNum.textContent = shot.done ? '0' : cfg.shotSecs; setShotProgress(0);
+      setText(el.shotNum, shot.done ? '0' : cfg.shotSecs); setShotProgress(0);
       el.shot.classList.remove('armed', 'urgent');
-      el.shotState.textContent = shot.done ? '시간 종료' : '대기'; el.shotState.className = 'state' + (shot.done ? ' urgent' : '');
-      el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초 시작`;
+      setText(el.shotState, shot.done ? '시간 종료' : '대기'); el.shotState.className = 'state' + (shot.done ? ' urgent' : '');
+      setText(el.shotHint, `카드를 누르면 ${cfg.shotSecs}초 시작`);
       setShotBtn('시작', true);
       return;
     }
     setShotBtn('중지', false);
     const rem = Math.max(0, shot.endAt - Date.now());
     const sec = Math.ceil(rem / 1000);
-    el.shotNum.textContent = sec;
+    setText(el.shotNum, sec);
     setShotProgress(rem / (shot.total * 1000));
     el.shot.classList.add('armed'); el.shot.classList.toggle('urgent', sec <= 10);
-    el.shotState.textContent = (sec <= 10 ? '서두르세요' : '진행 중') + chipNote; el.shotState.className = 'state' + (sec <= 10 ? ' urgent' : ' run');
-    el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 리셋`;
+    setText(el.shotState, (sec <= 10 ? '서두르세요' : '진행 중') + chipNote); el.shotState.className = 'state' + (sec <= 10 ? ' urgent' : ' run');
+    setText(el.shotHint, `카드를 누르면 ${cfg.shotSecs}초로 리셋`);
     if (sec !== shot.lastBeep) {
       shot.lastBeep = sec;
       // final countdown: a beep every second from 10, rising in pitch; 3-2-1 double up
@@ -674,8 +677,17 @@
   }
   function onLevelEnd() {
     sfx.levelEnd(); vibrate([200, 100, 200]);
-    if (run.idx < cfg.levels.length - 1) setLevel(run.idx + 1, { autoStart: !!cfg.autoAdvance });
-    else { run.running = false; run.remaining = 0; persistRun(); renderStatic(); renderTime(true); toast('마지막 레벨이 끝났어요'); }
+    // ms past the end of the level that just finished: after a long stay in the background this can span several levels,
+    // so walk forward through them instead of restarting the next level from the top
+    let over = Math.max(0, Date.now() - run.at - run.remaining);
+    while (run.idx < cfg.levels.length - 1) {
+      setLevel(run.idx + 1, { autoStart: !!cfg.autoAdvance });
+      if (!run.running) return;
+      const total = cfg.levels[run.idx].min * 60000;
+      if (over < total) { run.at = Date.now() - over; lastShownSec = -1; persistRun(); renderTime(true); return; }
+      over -= total;
+    }
+    run.running = false; run.remaining = 0; persistRun(); renderStatic(); renderTime(true); toast('마지막 레벨이 끝났어요');
   }
   function togglePause() {
     audio();
@@ -751,7 +763,17 @@
     if (!('wakeLock' in navigator) || wake) return;
     try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch { wake = null; }
   }
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lastShownSec = -1; if (run.running || shot.running) requestWake(); } });
+  // back from the background (standalone web apps get frozen there): redraw now, wake the audio session iOS parked, re-take the wake lock
+  function onResume() {
+    if (document.visibilityState !== 'visible') return;
+    lastShownSec = -1; renderTime(true); renderShot();
+    if (ac && ac.state !== 'running') { try { ac.resume(); } catch {} }
+    if (silentEl && silentEl.paused) silentEl.play().catch(() => {});
+    if (run.running || shot.running) requestWake();
+  }
+  document.addEventListener('visibilitychange', onResume);
+  window.addEventListener('pageshow', onResume);
+  window.addEventListener('focus', onResume);
 
   // ---------- settings ----------
   const sheet = $('sheet'), levelsEl = $('levels');
@@ -874,6 +896,7 @@
   renderStatic(); renderTime(true); renderShot();
   if (run.running) requestWake();
   requestAnimationFrame(loop);
+  setInterval(() => { renderTime(false); if (shot.running) renderShot(); }, 1000); // keeps the clock moving if iOS stalls rAF after a resume
 })();
 </script>
 
