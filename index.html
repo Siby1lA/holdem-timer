@@ -66,6 +66,14 @@
     --on-weak: #fff;             /* buttons inside the red urgent shot card */
     --toast-bg: #191f28; --toast-fg: #fff;
     --card-shadow: none;
+    /* depth hooks: all off in the default skin (flat), the 홀덤 skin layers gloss/edges/shadows through them */
+    --card-image: none;          /* painted over --card */
+    --primary-image: none; --primary-shadow: none;
+    --soft-image: none; --btn-shadow: none;
+    --gold-image: none;          /* chip badge + time-chip button */
+    --bar-image: none; --track-shadow: none; --input-shadow: none;
+    --num-shadow: none;
+    --watermark: none;           /* big faint spade behind the timers */
     --safe-x: 0px; --safe-b: 0px; /* set by JS on iPhone landscape: the iframe never receives env() insets */
     --num: "Inter", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --body: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
@@ -98,9 +106,41 @@
     --gold: #b58a2a; --gold-weak: #f1e3bd;
     --red: #c3303d; --red-weak: #f9e0e0; --green: #1f7f4c; --green-weak: #e0efe4;
     --on-weak: #f5eddb; --toast-bg: #2a2230; --toast-fg: #f6eedc;
-    --card-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 6px 18px rgba(30,4,16,.35);
+    /* ground: lit from the top like the icon's tile, darker toward the bottom corners */
+    --bg-image:
+      radial-gradient(130% 90% at 50% -15%, rgba(255,214,190,.22), rgba(255,214,190,0) 60%),
+      radial-gradient(90% 60% at 50% 115%, rgba(0,0,0,.45), rgba(0,0,0,0) 65%),
+      linear-gradient(180deg, #6c1c3c 0%, #521430 55%, #3d0e21 100%);
+    /* cream card: diagonal sheen + warm vertical fade, white hairline on top, hard shadow edge then a soft spread */
+    --card-image:
+      linear-gradient(160deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 42%),
+      linear-gradient(180deg, #faf3e3 0%, #f1e7d1 100%);
+    --card-shadow:
+      inset 0 1px 0 rgba(255,255,255,.85), inset 0 -1px 0 rgba(120,80,60,.14), inset 0 0 0 1px rgba(255,255,255,.35),
+      0 1px 0 rgba(40,6,20,.6), 0 3px 0 rgba(40,6,20,.22), 0 14px 30px rgba(28,3,15,.5);
+    --primary-image: linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 55%, rgba(0,0,0,.12) 100%);
+    --primary-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 2px 0 #4a0d26, 0 6px 12px rgba(40,5,20,.35);
+    --soft-image: linear-gradient(180deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 60%);
+    --btn-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 0 rgba(120,80,60,.25), 0 2px 4px rgba(60,20,30,.12);
+    --gold-image: linear-gradient(180deg, #f8edcb 0%, #ecd79e 100%);
+    --bar-image: linear-gradient(180deg, #dcb45c 0%, #b88b2b 60%, #a37a22 100%);
+    --track-shadow: inset 0 1px 2px rgba(60,30,20,.22);
+    --input-shadow: inset 0 1px 2px rgba(60,30,20,.16), inset 0 0 0 1px rgba(120,80,60,.08);
+    --num-shadow: 0 1px 0 rgba(255,255,255,.75);
+    --watermark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='%232a2230' d='M50 4C50 4 12 38 12 60c0 14 14 22 27 14-3 9-9 15-16 18h54c-7-3-13-9-16-18 13 8 27 0 27-14C88 38 50 4 50 4z'/%3E%3C/svg%3E");
     color-scheme: light;
   }
+  /* 홀덤 extras that are not just colours: the faint spade on the two timer cards (like the pips on the ace) */
+  html:root[data-skin="holdem"] .card { position: relative; isolation: isolate; overflow: hidden; }
+  html:root[data-skin="holdem"] .card::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    right: 6%; top: 50%; width: min(42cqw, 230px); aspect-ratio: 1; transform: translateY(-46%);
+    background: var(--watermark) center / contain no-repeat; opacity: .06;
+  }
+  html:root[data-skin="holdem"] .switch i { box-shadow: var(--track-shadow); }
+  html:root[data-skin="holdem"] .switch input:checked + i { background-image: var(--primary-image); }
+  html:root[data-skin="holdem"] .switch i::after { background: linear-gradient(180deg, #fff, #f1e7d1); box-shadow: 0 1px 3px rgba(40,6,20,.35), inset 0 -1px 0 rgba(120,80,60,.15); }
+  html:root[data-skin="holdem"] .text-btn, html:root[data-skin="holdem"] .title h1, html:root[data-skin="holdem"] .sheet-head h2, html:root[data-skin="holdem"] .group-title h3 { text-shadow: 0 1px 2px rgba(30,3,15,.5); }
 
   html, body { height: 100%; }
   html { background: var(--bg-image), var(--bg); } /* on the root so the canvas carries the gradient without background-attachment: fixed (iOS ignores it) */
@@ -125,10 +165,10 @@
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .title { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; color: var(--fg-bg); }
-  .chip { padding: 4px 10px; border-radius: 999px; background: var(--gold-weak); color: var(--gold); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--gold-image), var(--gold-weak); color: var(--gold); font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: var(--btn-shadow); }
   .chip.break { background: var(--green-weak); color: var(--green); }
   .icons { display: flex; gap: 6px; }
-  .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--card); color: var(--fg-2); }
+  .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--card-image), var(--card); color: var(--fg-2); box-shadow: var(--btn-shadow); }
   .icon-btn.on { color: var(--blue); }
   .icon-btn:active { background: var(--card-2); }
   .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -136,7 +176,7 @@
   /* ---- main ---- */
   .main { min-height: 0; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 12px; }
 
-  .card { background: var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; box-shadow: var(--card-shadow); }
+  .card { background: var(--card-image), var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; box-shadow: var(--card-shadow); }
 
   .clock { display: grid; grid-template-rows: auto 1fr auto; padding: 16px 18px 14px; gap: 8px; position: relative; }
   .clock-head { display: flex; justify-content: space-between; align-items: center; }
@@ -146,13 +186,13 @@
   .state.run { color: var(--blue); } .state.run::before { background: var(--blue); }
   .state.urgent { color: var(--red); } .state.urgent::before { background: var(--red); }
   .clock-body { display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; padding-block: 6px; }
-  .time { font-weight: 800; font-size: clamp(48px, 16cqw, 140px); line-height: 1; letter-spacing: -0.04em; }
+  .time { font-weight: 800; font-size: clamp(48px, 16cqw, 140px); line-height: 1; letter-spacing: -0.04em; text-shadow: var(--num-shadow); }
   .time.warn { color: var(--red); }
   .clock.paused .time { color: var(--fg-2); }
   .blinds-now { font-size: clamp(18px, 6cqw, 40px); font-weight: 700; letter-spacing: -0.02em; }
   .blinds-now small { font-size: .55em; color: var(--muted); font-weight: 600; margin-left: .4em; }
-  .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; }
-  .bar i { display: block; height: 100%; width: 100%; background: var(--gold); border-radius: 999px; transition: width .25s linear, background .2s; }
+  .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; box-shadow: var(--track-shadow); }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--bar-image), var(--gold); border-radius: 999px; transition: width .25s linear, background .2s; }
   .bar.warn i { background: var(--red); }
   .controls { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
   .btn {
@@ -160,11 +200,11 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .08s, background .15s;
   }
   .btn:active { transform: scale(.97); }
-  .btn.primary { background: var(--blue); color: var(--primary-fg); }
-  .btn.primary:active { background: var(--primary-strong); }
-  .btn.soft { background: var(--card-2); color: var(--fg-2); }
+  .btn.primary { background: var(--primary-image), var(--blue); color: var(--primary-fg); box-shadow: var(--primary-shadow); }
+  .btn.primary:active { background: var(--primary-image), var(--primary-strong); }
+  .btn.soft { background: var(--soft-image), var(--card-2); color: var(--fg-2); box-shadow: var(--btn-shadow); }
   .btn.danger-soft { background: var(--red-weak); color: var(--red); }
-  .btn.nav { font-size: 22px; color: var(--fg-2); background: var(--card-2); }
+  .btn.nav { font-size: 22px; color: var(--fg-2); background: var(--soft-image), var(--card-2); box-shadow: var(--btn-shadow); }
   .btn:disabled { opacity: .4; }
 
   /* ---- shot clock ---- */
@@ -172,11 +212,11 @@
   .shot.urgent { background: var(--red-weak); }
   .shot-head { display: flex; justify-content: space-between; align-items: center; }
   .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; }
-  .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); }
+  .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); text-shadow: var(--num-shadow); }
   .shot.armed .shot-num { color: var(--fg); }
   .shot.urgent .shot-num { color: var(--red); animation: pulse .5s steps(2) infinite; }
-  .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; }
-  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--gold); border-radius: 999px; transition: width .2s linear; }
+  .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; box-shadow: var(--track-shadow); }
+  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--bar-image), var(--gold); border-radius: 999px; transition: width .2s linear; }
   .shot.urgent .shot-ring i { background: var(--red); }
   .shot .controls { grid-template-columns: 1fr 1fr; }
   .shot.paused .shot-num { color: var(--muted); }
@@ -188,9 +228,9 @@
   .clock-body:active { background: var(--card-2); }
   .shot-hint { color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 6px; }
   .shot.urgent .btn.primary { background: var(--red); }
-  .shot.urgent .btn.soft { background: var(--on-weak); }
-  .btn.chip { background: var(--gold-weak); color: var(--gold); }
-  .shot.urgent .btn.chip { background: var(--on-weak); }
+  .shot.urgent .btn.soft { background: var(--soft-image), var(--on-weak); }
+  .btn.chip { background: var(--gold-image), var(--gold-weak); color: var(--gold); box-shadow: var(--btn-shadow); }
+  .shot.urgent .btn.chip { background: var(--soft-image), var(--on-weak); }
   .shot-num-wrap { position: relative; }
   .chip-float {
     position: absolute; left: 100%; top: 35%; margin-left: 8px; font-weight: 800; color: var(--gold);
@@ -203,7 +243,7 @@
 
   /* ---- info ---- */
   .info { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 8px; }
-  .cell { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; box-shadow: var(--card-shadow); }
+  .cell { background: var(--card-image), var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; box-shadow: var(--card-shadow); }
   .cell .k { color: var(--muted); font-size: 12px; font-weight: 500; }
   .cell .v { font-weight: 700; font-size: clamp(16px, 4.6vw, 26px); letter-spacing: -0.02em; line-height: 1.15; } /* long blinds wrap only at the slash: each number is a nowrap span */
   .cell .v .nb { white-space: nowrap; }
@@ -222,7 +262,7 @@
   .text-btn { color: var(--fg-2); font-weight: 600; font-size: 15px; padding: 8px 4px; }
   .sheet .text-btn { color: var(--fg-bg); opacity: .85; } /* sits on the ground, not in a card */
   .sheet-body { overflow: auto; min-height: 0; display: grid; gap: 14px; align-content: start; padding-bottom: 16px; }
-  .group { background: var(--card); border-radius: 20px; padding: 6px 18px; box-shadow: var(--card-shadow); }
+  .group { background: var(--card-image), var(--card); border-radius: 20px; padding: 6px 18px; box-shadow: var(--card-shadow); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; border-top: 1px solid var(--line); }
   .row:first-child { border-top: 0; }
   .row .k { font-size: 15px; font-weight: 500; }
@@ -231,7 +271,7 @@
     box-sizing: border-box; padding: 9px 12px; border-radius: 12px; border: 0;
     background: var(--card-2); color: var(--fg); font: inherit; font-size: 16px; font-weight: 600; text-align: right;
     font-family: var(--num); font-variant-numeric: tabular-nums; min-width: 0;
-    -moz-appearance: textfield; appearance: textfield;
+    -moz-appearance: textfield; appearance: textfield; box-shadow: var(--input-shadow);
   }
   input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .row input { width: 120px; }
@@ -249,7 +289,7 @@
   .group-title h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--fg-bg); }
   .group-title span { color: var(--muted-bg); font-size: 12px; }
   .levels { display: grid; gap: 8px; }
-  .lv { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 10px; box-shadow: var(--card-shadow); }
+  .lv { background: var(--card-image), var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 10px; box-shadow: var(--card-shadow); }
   .lv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .lv-top .n { font-weight: 700; font-size: 14px; }
   .lv-top .n.b { color: var(--green); }
@@ -265,7 +305,7 @@
   .lv-name { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 500; }
   .lv-name input { width: 100%; text-align: left; font-family: var(--body); font-weight: 600; }
   .add-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .btn.outline { background: var(--card); color: var(--blue); height: 48px; font-size: 15px; }
+  .btn.outline { background: var(--card-image), var(--card); color: var(--blue); height: 48px; font-size: 15px; box-shadow: var(--card-shadow); }
   .note { color: var(--muted-bg); font-size: 13px; line-height: 1.55; max-width: 60ch; padding: 0 4px; margin: 0; }
   .sheet-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-block: 10px 14px; }
   .sheet-foot .btn { height: 54px; }
