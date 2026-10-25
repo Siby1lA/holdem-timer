@@ -222,8 +222,20 @@
   .btn:disabled { opacity: .4; }
 
   /* ---- shot clock ---- */
-  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; }
+  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; position: relative; isolation: isolate; overflow: hidden; }
   .shot.urgent { background: var(--red-weak); }
+  /* progress fill: a tinted sheet behind the card content, as wide as the remaining fraction (--shot-p, 0..1),
+     so the whole card reads as the shot clock draining from right to left. Gold while running, red under 10s
+     (the number keeps its blink), grey when paused, gone when idle. */
+  .shot-fill { position: absolute; inset: 0; z-index: -1; pointer-events: none; width: calc(var(--shot-p, 0) * 100%);
+    background: var(--shot-fill-image), var(--shot-fill); transition: width .2s linear, background-color .2s; }
+  .shot { --shot-p: 0; --shot-fill: color-mix(in srgb, var(--gold) 32%, transparent); --shot-fill-image: none; }
+  .shot.urgent { --shot-fill: color-mix(in srgb, var(--red) 30%, transparent); }
+  .shot.paused { --shot-fill: color-mix(in srgb, var(--muted) 22%, transparent); }
+  html:root[data-skin="holdem"] .shot { --shot-fill: #f3d35a; --shot-fill-image: linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 55%, rgba(120,80,0,.08) 100%); }
+  html:root[data-skin="holdem"] .shot.urgent { --shot-fill: #f0a3a3; }
+  html:root[data-skin="holdem"] .shot.paused { --shot-fill: #d9cdb0; }
+  @supports not (color: color-mix(in srgb, red, blue)) { .shot { --shot-fill: var(--gold-weak); } .shot.urgent { --shot-fill: var(--red-weak); } .shot.paused { --shot-fill: var(--track); } }
   .shot-head { display: flex; justify-content: space-between; align-items: center; }
   .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; }
   .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); text-shadow: var(--num-shadow); }
@@ -405,6 +417,7 @@
 
   <div class="main">
     <section class="card shot" id="shot" aria-label="샷클락">
+      <div class="shot-fill" aria-hidden="true"></div>
       <div class="shot-head">
         <span class="label">샷클락</span>
         <span class="state" id="shotState">대기</span>
@@ -616,12 +629,14 @@
     if (run.running && rem <= 0) onLevelEnd();
   }
 
+  // ring bar + card fill share one fraction of the shot clock left (clamped: a time chip can push it past 1 briefly)
+  function setShotProgress(p) { p = Math.max(0, Math.min(1, p || 0)); el.shotBar.style.width = `${p * 100}%`; el.shot.style.setProperty('--shot-p', p.toFixed(4)); }
   function setShotBtn(text, primary) { el.shotBtn.textContent = text; el.shotBtn.classList.toggle('primary', primary); el.shotBtn.classList.toggle('soft', !primary); }
   function renderShot() {
     const chipNote = shot.chips ? ` · 타임칩 ${shot.chips}회` : '';
     if (shot.paused) {
       const sec = Math.ceil(shot.left / 1000);
-      el.shotNum.textContent = sec; el.shotBar.style.width = `${Math.min(100, (shot.left / (shot.total * 1000)) * 100)}%`;
+      el.shotNum.textContent = sec; setShotProgress(shot.left / (shot.total * 1000));
       el.shot.classList.remove('armed', 'urgent'); el.shot.classList.add('paused');
       el.shotState.textContent = '중지됨' + chipNote; el.shotState.className = 'state';
       el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 다시 시작`;
@@ -630,7 +645,7 @@
     }
     el.shot.classList.remove('paused');
     if (!shot.running) {
-      el.shotNum.textContent = shot.done ? '0' : cfg.shotSecs; el.shotBar.style.width = '0%';
+      el.shotNum.textContent = shot.done ? '0' : cfg.shotSecs; setShotProgress(0);
       el.shot.classList.remove('armed', 'urgent');
       el.shotState.textContent = shot.done ? '시간 종료' : '대기'; el.shotState.className = 'state' + (shot.done ? ' urgent' : '');
       el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초 시작`;
@@ -641,7 +656,7 @@
     const rem = Math.max(0, shot.endAt - Date.now());
     const sec = Math.ceil(rem / 1000);
     el.shotNum.textContent = sec;
-    el.shotBar.style.width = `${Math.min(100, (rem / (shot.total * 1000)) * 100)}%`;
+    setShotProgress(rem / (shot.total * 1000));
     el.shot.classList.add('armed'); el.shot.classList.toggle('urgent', sec <= 10);
     el.shotState.textContent = (sec <= 10 ? '서두르세요' : '진행 중') + chipNote; el.shotState.className = 'state' + (sec <= 10 ? ' urgent' : ' run');
     el.shotHint.textContent = `카드를 누르면 ${cfg.shotSecs}초로 리셋`;
