@@ -338,54 +338,65 @@
   }
   .toast.show { opacity: 1; }
   /* Landscape: two columns and everything sized to the viewport height so nothing scrolls.
-     The timer bodies become size containers so the big digits scale by height as well as width. */
-  @media (min-aspect-ratio: 5/4) and (min-width: 640px) {
-    .app { height: 100%; min-height: 0; padding-block: 8px calc(10px + var(--safe-b)); gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
-    .title h1 { font-size: 18px; }
-    .icon-btn { width: 36px; height: 36px; }
-    .main { grid-template-columns: 1.5fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; }
-    .card { min-height: 0; }
-    .clock, .shot { padding: 12px 16px 12px; gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
-    .clock-body, .shot-body { container-type: size; min-height: 0; padding-block: 0; gap: 4px; }
-    .time { font-size: min(18cqw, 55cqh); }
-    .blinds-now { font-size: min(6cqw, 18cqh); }
-    .shot-num { font-size: min(34cqw, 70cqh); }
-    .shot-body { grid-template-rows: auto auto; }
-    @container (max-height: 120px) { .shot-hint { display: none; } }
-    .btn { height: 44px; font-size: 15px; }
-    .info { gap: 10px; grid-template-columns: 1.3fr .9fr 1.2fr; }
-    .cell { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 14px; border-radius: 14px; } /* label left, number flush right */
-    .cell .v { font-size: 18px; white-space: nowrap; }
+     Lives behind html.ls, which JS sets from the (min-aspect-ratio: 5/4) and (min-width: 640px) media query or from
+     the iPhone 가로 모드 button (see applyLayout). The timer bodies become size containers so the big digits scale by height too. */
+  html.ls .app { height: 100%; min-height: 0; padding-block: 8px calc(10px + var(--safe-b)); gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  html.ls .title h1 { font-size: 18px; }
+  html.ls .icon-btn { width: 36px; height: 36px; }
+  html.ls .main { grid-template-columns: 1.5fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 10px; min-height: 0; }
+  html.ls .card { min-height: 0; }
+  html.ls .clock, html.ls .shot { padding: 12px 16px 12px; gap: 8px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  html.ls .clock-body, html.ls .shot-body { container-type: size; min-height: 0; padding-block: 0; gap: 4px; }
+  html.ls .time { font-size: min(18cqw, 55cqh); }
+  html.ls .blinds-now { font-size: min(6cqw, 18cqh); }
+  html.ls .shot-num { font-size: min(34cqw, 70cqh); }
+  html.ls .shot-body { grid-template-rows: auto auto; }
+  @container (max-height: 120px) { html.ls .shot-hint { display: none; } }
+  html.ls .btn { height: 44px; font-size: 15px; }
+  html.ls .info { gap: 10px; grid-template-columns: 1.3fr .9fr 1.2fr; }
+  html.ls .cell { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 14px; border-radius: 14px; } /* label left, number flush right */
+  html.ls .cell .v { font-size: 18px; white-space: nowrap; }
 
-    /* short landscape (phone with browser bar + viewer header): tighten everything */
-    @media (max-height: 300px) {
-      .app { padding-block: 6px calc(6px + var(--safe-b)); gap: 6px; }
-      .title h1 { font-size: 16px; } .chip { font-size: 12px; padding: 3px 8px; }
-      .icon-btn { width: 32px; height: 32px; border-radius: 10px; } .icon-btn svg { width: 18px; height: 18px; }
-      .main { gap: 8px; }
-      .clock, .shot { padding: 10px 14px; gap: 6px; border-radius: 18px; }
-      .label, .state { font-size: 12px; }
-      .btn { height: 38px; font-size: 14px; border-radius: 12px; }
-      .controls { gap: 6px; grid-template-columns: 44px 1fr 44px; }
-      .info { gap: 6px; }
-      .cell { padding: 6px 12px; gap: 8px; border-radius: 12px; }
-      .cell .k { font-size: 11px; } .cell .v { font-size: 16px; }
-    }
-    /* very short (both bars showing): minimum viable sizes, page may scroll a little below this */
-    @media (max-height: 240px) {
-      .app { padding-block: 4px calc(4px + var(--safe-b)); gap: 4px; }
-      .top { min-height: 30px; } .title h1 { font-size: 15px; }
-      .icon-btn { width: 28px; height: 28px; } .icon-btn svg { width: 16px; height: 16px; }
-      .main { gap: 6px; }
-      .clock, .shot { padding: 8px 12px; gap: 4px; border-radius: 14px; }
-      .label, .state { font-size: 11px; }
-      .btn { height: 34px; font-size: 13px; }
-      .controls { grid-template-columns: 40px 1fr 40px; }
-      .info { gap: 4px; }
-      .cell { padding: 4px 10px; border-radius: 10px; }
-      .cell .v { font-size: 14px; }
-    }
+  /* short landscape (phone with browser bar + viewer header): tighten everything */
+  @media (max-height: 300px) {
+    html.ls .app { padding-block: 6px calc(6px + var(--safe-b)); gap: 6px; }
+    html.ls .title h1 { font-size: 16px; } html.ls .chip { font-size: 12px; padding: 3px 8px; }
+    html.ls .icon-btn { width: 32px; height: 32px; border-radius: 10px; } html.ls .icon-btn svg { width: 18px; height: 18px; }
+    html.ls .main { gap: 8px; }
+    html.ls .clock, html.ls .shot { padding: 10px 14px; gap: 6px; border-radius: 18px; }
+    html.ls .label, html.ls .state { font-size: 12px; }
+    html.ls .btn { height: 38px; font-size: 14px; border-radius: 12px; }
+    html.ls .controls { gap: 6px; grid-template-columns: 44px 1fr 44px; }
+    html.ls .info { gap: 6px; }
+    html.ls .cell { padding: 6px 12px; gap: 8px; border-radius: 12px; }
+    html.ls .cell .k { font-size: 11px; } html.ls .cell .v { font-size: 16px; }
   }
+  /* very short (both bars showing): minimum viable sizes, page may scroll a little below this */
+  @media (max-height: 240px) {
+    html.ls .app { padding-block: 4px calc(4px + var(--safe-b)); gap: 4px; }
+    html.ls .top { min-height: 30px; } html.ls .title h1 { font-size: 15px; }
+    html.ls .icon-btn { width: 28px; height: 28px; } html.ls .icon-btn svg { width: 16px; height: 16px; }
+    html.ls .main { gap: 6px; }
+    html.ls .clock, html.ls .shot { padding: 8px 12px; gap: 4px; border-radius: 14px; }
+    html.ls .label, html.ls .state { font-size: 11px; }
+    html.ls .btn { height: 34px; font-size: 13px; }
+    html.ls .controls { grid-template-columns: 40px 1fr 40px; }
+    html.ls .info { gap: 4px; }
+    html.ls .cell { padding: 4px 10px; border-radius: 10px; }
+    html.ls .cell .v { font-size: 14px; }
+  }
+
+  /* 가로 모드 (iPhone): the body is laid out as a landscape box and turned 90° clockwise, so the phone is held with its top to the left.
+     The root's safe-area padding already keeps the body clear of the notch (now left) and home bar (now right); fixed children
+     (settings sheet, toast) move with the body because the transform makes it their containing block, so their own insets go. */
+  html[data-rot] body {
+    width: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    width: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: 100vw;
+    transform-origin: 0 0; transform: rotate(90deg) translateY(-100%);
+  }
+  html[data-rot] .sheet { padding-top: 0; padding-bottom: 0; }
+  html[data-rot] .toast { bottom: 24px; }
 </style>
 
 <div class="app" id="app">
@@ -399,7 +410,8 @@
         <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path id="soundWave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
       </button>
       <button class="icon-btn" id="fsBtn" aria-label="전체화면" title="전체화면">
-        <svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        <svg viewBox="0 0 24 24" id="fsIcon"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        <svg viewBox="0 0 24 24" id="rotIcon" hidden><rect x="2.5" y="8" width="19" height="12" rx="2.5"/><path d="M12 1.5a7 7 0 0 1 6.5 4.5M18.5 2v4h-4"/></svg>
       </button>
       <button class="icon-btn" id="setBtn" aria-label="설정" title="설정">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -495,7 +507,7 @@
     [15,10000,20000,20000],[15,20000,40000,40000],
   ].map(x => Array.isArray(x) ? { min: x[0], sb: x[1], bb: x[2], ante: x[3], brk: false }
                               : { min: x.min, sb: 0, bb: 0, ante: 0, brk: true, name: x.name });
-  const defaultCfg = () => ({ levels: DEFAULT_LEVELS.map(l => ({ ...l })), anteEqualsBB: true, shotSecs: 30, chipSecs: 30, sound: true, autoAdvance: true, theme: 'default' });
+  const defaultCfg = () => ({ levels: DEFAULT_LEVELS.map(l => ({ ...l })), anteEqualsBB: true, shotSecs: 30, chipSecs: 30, sound: true, autoAdvance: true, theme: 'default', rotate: false });
 
   const load = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -732,22 +744,18 @@
   el.shotBtn.addEventListener('click', toggleShot);
   el.chipBtn.addEventListener('click', useTimeChip);
 
-  // speaker icon: tap = test sound (so people can check their volume / iPhone mute switch), long-press = mute toggle
-  let soundHold = 0, soundHeld = false;
-  const soundDown = () => { soundHeld = false; soundHold = setTimeout(() => { soundHeld = true; cfg.sound = !cfg.sound; save(KEY_CFG, cfg); renderStatic(); if (cfg.sound) { audio(); sfx.test(); } toast(cfg.sound ? '소리 켜짐' : '소리 꺼짐'); vibrate(30); }, 600); };
-  const soundUp = () => { clearTimeout(soundHold); };
-  el.soundBtn.addEventListener('pointerdown', soundDown);
-  el.soundBtn.addEventListener('pointerup', soundUp);
-  el.soundBtn.addEventListener('pointercancel', soundUp);
-  el.soundBtn.addEventListener('pointerleave', soundUp);
-  el.soundBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  // speaker icon: tap toggles the sound; turning it on plays a test tone so people can check their volume / iPhone mute switch
   el.soundBtn.addEventListener('click', () => {
-    if (soundHeld) return;
-    if (!cfg.sound) { cfg.sound = true; save(KEY_CFG, cfg); renderStatic(); }
-    audio(); sfx.test();
-    toast(/iPhone|iPad/.test(navigator.userAgent) ? '테스트음 · 안 들리면 볼륨 버튼을 올려 보세요' : '테스트음 재생');
+    cfg.sound = !cfg.sound; save(KEY_CFG, cfg); renderStatic(); vibrate(20);
+    if (cfg.sound) { audio(); sfx.test(); }
+    toast(cfg.sound ? (/iPhone|iPad/.test(navigator.userAgent) ? '소리 켜짐 · 안 들리면 볼륨 버튼을 올려 보세요' : '소리 켜짐') : '소리 꺼짐');
   });
   el.fsBtn.addEventListener('click', async () => {
+    if (!canFullscreen) { // iPhone: no fullscreen or orientation lock, so turn the page itself
+      cfg.rotate = !cfg.rotate; save(KEY_CFG, cfg); applyLayout(); vibrate(20);
+      toast(cfg.rotate ? '가로 모드 · 폰을 옆으로 눕혀서 보세요' : '세로 모드');
+      return;
+    }
     const d = document.documentElement;
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -756,6 +764,23 @@
       else toast('이 브라우저는 전체화면을 지원하지 않아요');
     } catch { toast('전체화면을 열 수 없어요'); }
   });
+
+  // ---------- landscape ----------
+  // The landscape layout sits behind html.ls (not a bare media query) so 가로 모드 can turn it on in a portrait viewport:
+  // iPhone cannot go fullscreen or lock orientation, so the page is rotated 90° with CSS (html[data-rot]) and held sideways.
+  // When the phone itself is in landscape the CSS turn is dropped, otherwise the two would fight.
+  const realLandscape = matchMedia('(min-aspect-ratio: 5/4) and (min-width: 640px)');
+  const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  function applyLayout() {
+    const d = document.documentElement, turn = !!cfg.rotate && !realLandscape.matches;
+    d.toggleAttribute('data-rot', turn);
+    d.classList.toggle('ls', realLandscape.matches || turn);
+    $('fsIcon').toggleAttribute('hidden', !canFullscreen); $('rotIcon').toggleAttribute('hidden', canFullscreen); // SVG has no .hidden property
+    el.fsBtn.classList.toggle('on', turn);
+    el.fsBtn.setAttribute('aria-label', canFullscreen ? '전체화면' : '가로 모드'); el.fsBtn.title = canFullscreen ? '전체화면' : '가로 모드';
+  }
+  realLandscape.onchange = applyLayout;
+  applyLayout();
 
   // ---------- wake lock ----------
   let wake = null;
