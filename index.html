@@ -71,7 +71,7 @@
     --primary-image: none; --primary-shadow: none;
     --soft-image: none; --btn-shadow: none;
     --gold-image: none;          /* chip badge + time-chip button */
-    --bar-image: none; --track-shadow: none; --input-shadow: none;
+    --track-shadow: none; --input-shadow: none;
     --num-shadow: none;
     --watermark: none;           /* big faint spade behind the timers */
     --safe-x: 0px; --safe-b: 0px; /* set by JS on iPhone landscape: the iframe never receives env() insets */
@@ -123,7 +123,6 @@
     --soft-image: linear-gradient(180deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 60%);
     --btn-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 0 rgba(120,80,60,.25), 0 2px 4px rgba(60,20,30,.12);
     --gold-image: linear-gradient(180deg, #f8edcb 0%, #ecd79e 100%);
-    --bar-image: linear-gradient(180deg, #dcb45c 0%, #b88b2b 60%, #a37a22 100%);
     --track-shadow: inset 0 1px 2px rgba(60,30,20,.22);
     --input-shadow: inset 0 1px 2px rgba(60,30,20,.16), inset 0 0 0 1px rgba(120,80,60,.08);
     --num-shadow: 0 1px 0 rgba(255,255,255,.75);
@@ -205,9 +204,21 @@
   .clock.paused .time { color: var(--fg-2); }
   .blinds-now { font-size: clamp(18px, 6cqw, 40px); font-weight: 700; letter-spacing: -0.02em; }
   .blinds-now small { font-size: .55em; color: var(--muted); font-weight: 600; margin-left: .4em; }
-  .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; box-shadow: var(--track-shadow); }
-  .bar i { display: block; height: 100%; width: 100%; background: var(--bar-image), var(--gold); border-radius: 999px; transition: width .25s linear, background .2s; }
-  .bar.warn i { background: var(--red); }
+  /* progress fill: the two timer cards have no thin bar; instead a tinted sheet behind the card content is as wide
+     as the remaining fraction (--fill-p, 0..1), so the whole card drains from right to left. Gold while running,
+     red in the last stretch (shot clock under 10s, level under a minute; the numbers keep their red styling),
+     grey when paused, gone when idle. The level card eases over a full second so its once-a-second update reads as continuous. */
+  .clock, .shot { position: relative; isolation: isolate; overflow: hidden; }
+  .card-fill { position: absolute; inset: 0; z-index: -1; pointer-events: none; width: calc(var(--fill-p, 0) * 100%);
+    background: var(--fill-image), var(--fill); transition: width .2s linear, background-color .2s; }
+  .clock .card-fill { transition-duration: 1s, .2s; }
+  .clock, .shot { --fill-p: 0; --fill: color-mix(in srgb, var(--gold) 32%, transparent); --fill-image: none; }
+  .clock.urgent, .shot.urgent { --fill: color-mix(in srgb, var(--red) 30%, transparent); }
+  .clock.paused, .shot.paused { --fill: color-mix(in srgb, var(--muted) 22%, transparent); }
+  html:root[data-skin="holdem"] :is(.clock, .shot) { --fill: #f3d35a; --fill-image: linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 55%, rgba(120,80,0,.08) 100%); }
+  html:root[data-skin="holdem"] :is(.clock, .shot).urgent { --fill: #f0a3a3; }
+  html:root[data-skin="holdem"] :is(.clock, .shot).paused { --fill: #d9cdb0; }
+  @supports not (color: color-mix(in srgb, red, blue)) { .clock, .shot { --fill: var(--gold-weak); } .clock.urgent, .shot.urgent { --fill: var(--red-weak); } .clock.paused, .shot.paused { --fill: var(--track); } }
   .controls { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; }
   .btn {
     height: 52px; border-radius: 16px; font-size: 16px; font-weight: 700; letter-spacing: -0.01em;
@@ -222,31 +233,15 @@
   .btn:disabled { opacity: .4; }
 
   /* ---- shot clock ---- */
-  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; position: relative; isolation: isolate; overflow: hidden; }
+  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; }
   .shot.urgent { background: var(--red-weak); }
-  /* progress fill: a tinted sheet behind the card content, as wide as the remaining fraction (--shot-p, 0..1),
-     so the whole card reads as the shot clock draining from right to left. Gold while running, red under 10s
-     (the number keeps its blink), grey when paused, gone when idle. */
-  .shot-fill { position: absolute; inset: 0; z-index: -1; pointer-events: none; width: calc(var(--shot-p, 0) * 100%);
-    background: var(--shot-fill-image), var(--shot-fill); transition: width .2s linear, background-color .2s; }
-  .shot { --shot-p: 0; --shot-fill: color-mix(in srgb, var(--gold) 32%, transparent); --shot-fill-image: none; }
-  .shot.urgent { --shot-fill: color-mix(in srgb, var(--red) 30%, transparent); }
-  .shot.paused { --shot-fill: color-mix(in srgb, var(--muted) 22%, transparent); }
-  html:root[data-skin="holdem"] .shot { --shot-fill: #f3d35a; --shot-fill-image: linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 55%, rgba(120,80,0,.08) 100%); }
-  html:root[data-skin="holdem"] .shot.urgent { --shot-fill: #f0a3a3; }
-  html:root[data-skin="holdem"] .shot.paused { --shot-fill: #d9cdb0; }
-  @supports not (color: color-mix(in srgb, red, blue)) { .shot { --shot-fill: var(--gold-weak); } .shot.urgent { --shot-fill: var(--red-weak); } .shot.paused { --shot-fill: var(--track); } }
   .shot-head { display: flex; justify-content: space-between; align-items: center; }
   .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; }
   .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); text-shadow: var(--num-shadow); }
   .shot.armed .shot-num { color: var(--fg); }
   .shot.urgent .shot-num { color: var(--red); animation: pulse .5s steps(2) infinite; }
-  .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; box-shadow: var(--track-shadow); }
-  .shot-ring i { display: block; height: 100%; width: 0%; background: var(--bar-image), var(--gold); border-radius: 999px; transition: width .2s linear; }
-  .shot.urgent .shot-ring i { background: var(--red); }
   .shot .controls { grid-template-columns: 1fr 1fr; }
   .shot.paused .shot-num { color: var(--muted); }
-  .shot.paused .shot-ring i { background: var(--muted); }
   .shot { cursor: pointer; }
   .shot:active { background: var(--blue-weak); }
   .shot.urgent:active { background: var(--red-weak); }
@@ -354,10 +349,8 @@
     .clock-body, .shot-body { container-type: size; min-height: 0; padding-block: 0; gap: 4px; }
     .time { font-size: min(18cqw, 55cqh); }
     .blinds-now { font-size: min(6cqw, 18cqh); }
-    .bar { height: 6px; }
     .shot-num { font-size: min(34cqw, 70cqh); }
-    .shot-ring { margin-top: 6px; }
-    .shot-body { grid-template-rows: auto auto auto; }
+    .shot-body { grid-template-rows: auto auto; }
     @container (max-height: 120px) { .shot-hint { display: none; } }
     .btn { height: 44px; font-size: 15px; }
     .info { gap: 10px; grid-template-columns: 1.3fr .9fr 1.2fr; }
@@ -374,7 +367,6 @@
       .label, .state { font-size: 12px; }
       .btn { height: 38px; font-size: 14px; border-radius: 12px; }
       .controls { gap: 6px; grid-template-columns: 44px 1fr 44px; }
-      .bar, .shot-ring { height: 4px; } .shot-ring { margin-top: 4px; }
       .info { gap: 6px; }
       .cell { padding: 6px 12px; gap: 8px; border-radius: 12px; }
       .cell .k { font-size: 11px; } .cell .v { font-size: 16px; }
@@ -417,14 +409,13 @@
 
   <div class="main">
     <section class="card shot" id="shot" aria-label="샷클락">
-      <div class="shot-fill" aria-hidden="true"></div>
+      <div class="card-fill" aria-hidden="true"></div>
       <div class="shot-head">
         <span class="label">샷클락</span>
         <span class="state" id="shotState">대기</span>
       </div>
       <div class="shot-body" id="shotTap">
         <div class="shot-num-wrap"><div class="shot-num num" id="shotNum">30</div><span class="chip-float num" id="chipFloat" aria-hidden="true">+30</span></div>
-        <div class="shot-ring"><i id="shotBar"></i></div>
         <div class="shot-hint" id="shotHint">카드를 누르면 30초 시작</div>
       </div>
       <div class="controls">
@@ -433,6 +424,7 @@
       </div>
     </section>
     <section class="card clock paused" id="clock" aria-label="레벨 타이머">
+      <div class="card-fill" aria-hidden="true"></div>
       <div class="clock-head">
         <span class="label">남은 시간</span>
         <span class="state" id="state">일시정지</span>
@@ -440,7 +432,6 @@
       <div class="clock-body" id="clockTap">
         <div class="time num" id="time">15:00</div>
         <div class="blinds-now num" id="blindsNow">100 / 200</div>
-        <div class="bar" id="bar"><i id="barFill"></i></div>
       </div>
       <div class="controls">
         <button class="btn nav" id="prevBtn" aria-label="이전 레벨">‹</button>
@@ -579,9 +570,9 @@
   // ---------- render ----------
   const el = {
     levelTag: $('levelTag'), chip: $('chip'), time: $('time'), blindsNow: $('blindsNow'), clock: $('clock'), state: $('state'),
-    bar: $('bar'), barFill: $('barFill'), playBtn: $('playBtn'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
+    playBtn: $('playBtn'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'),
     vBlinds: $('vBlinds'), vAnte: $('vAnte'), vNext: $('vNext'), cellNext: $('cellNext'), cellBlinds: $('cellBlinds'),
-    shot: $('shot'), shotNum: $('shotNum'), shotBar: $('shotBar'), shotState: $('shotState'), shotHint: $('shotHint'), shotBtn: $('shotBtn'),
+    shot: $('shot'), shotNum: $('shotNum'), shotState: $('shotState'), shotHint: $('shotHint'), shotBtn: $('shotBtn'),
     chipBtn: $('chipBtn'), chipFloat: $('chipFloat'),
     soundBtn: $('soundBtn'), fsBtn: $('fsBtn'),
   };
@@ -620,8 +611,8 @@
       el.time.textContent = mmss(rem);
       const urgent = rem <= 60000 && rem > 0 && !l.brk;
       el.time.classList.toggle('warn', urgent);
-      el.bar.classList.toggle('warn', urgent);
-      el.barFill.style.width = `${Math.max(0, Math.min(100, (rem / total) * 100))}%`;
+      el.clock.classList.toggle('urgent', urgent);
+      setFill(el.clock, rem / total);
       el.state.textContent = run.running ? (urgent ? '곧 레벨 종료' : '진행 중') : '일시정지';
       el.state.className = 'state' + (run.running ? (urgent ? ' urgent' : ' run') : '');
       if (run.running && sec === 60 && lastMinuteBeepIdx !== run.idx && !l.brk) { lastMinuteBeepIdx = run.idx; sfx.minuteLeft(); }
@@ -629,8 +620,9 @@
     if (run.running && rem <= 0) onLevelEnd();
   }
 
-  // ring bar + card fill share one fraction of the shot clock left (clamped: a time chip can push it past 1 briefly)
-  function setShotProgress(p) { p = Math.max(0, Math.min(1, p || 0)); el.shotBar.style.width = `${p * 100}%`; el.shot.style.setProperty('--shot-p', p.toFixed(4)); }
+  // card fill = fraction of time left (clamped: a time chip can push the shot clock past 1 briefly)
+  function setFill(card, p) { card.style.setProperty('--fill-p', Math.max(0, Math.min(1, p || 0)).toFixed(4)); }
+  const setShotProgress = (p) => setFill(el.shot, p);
   function setShotBtn(text, primary) { el.shotBtn.textContent = text; el.shotBtn.classList.toggle('primary', primary); el.shotBtn.classList.toggle('soft', !primary); }
   function renderShot() {
     const chipNote = shot.chips ? ` · 타임칩 ${shot.chips}회` : '';
