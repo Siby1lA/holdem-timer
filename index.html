@@ -770,7 +770,8 @@
   // iPhone cannot go fullscreen or lock orientation, so the page is rotated 90° with CSS (html[data-rot]) and held sideways.
   // When the phone itself is in landscape the CSS turn is dropped, otherwise the two would fight.
   const realLandscape = matchMedia('(min-aspect-ratio: 5/4) and (min-width: 640px)');
-  const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // iPhone reports fullscreenEnabled since iOS 16.4 but only lets <video> go fullscreen, so rule it out by UA
+  const canFullscreen = !/iPhone|iPod/.test(navigator.userAgent) && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   function applyLayout() {
     const d = document.documentElement, turn = !!cfg.rotate && !realLandscape.matches;
     d.toggleAttribute('data-rot', turn);
