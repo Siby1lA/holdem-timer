@@ -165,7 +165,8 @@
   .info { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 8px; }
   .cell { background: var(--card); border-radius: 18px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
   .cell .k { color: var(--muted); font-size: 12px; font-weight: 500; }
-  .cell .v { font-weight: 700; font-size: clamp(16px, 4.6vw, 26px); letter-spacing: -0.02em; line-height: 1.15; word-break: keep-all; overflow-wrap: normal; } /* long blinds wrap only at the slash, numbers never split */
+  .cell .v { font-weight: 700; font-size: clamp(16px, 4.6vw, 26px); letter-spacing: -0.02em; line-height: 1.15; } /* long blinds wrap only at the slash: each number is a nowrap span */
+  .cell .v .nb { white-space: nowrap; }
   .cell.break .v { color: var(--green); }
 
   /* ---- settings sheet ---- */
@@ -437,6 +438,8 @@
   const anteOf = (l) => cfg.anteEqualsBB ? l.bb : l.ante;
   const breakName = (l) => (l.name || '').trim() || '휴식';
   const blindsStr = (l) => l.brk ? `${breakName(l)} ${l.min}분` : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+  // same text for the bottom cells, but each number wrapped so Safari can only break at the slash (never after a comma)
+  const blindsHtml = (l) => l.brk ? `${breakName(l)} ${l.min}분` : `<span class="nb">${fmtNum(l.sb)}</span> / <span class="nb">${fmtNum(l.bb)}</span>`;
   const mmss = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   const levelNumber = (idx) => cfg.levels.slice(0, idx + 1).filter(l => !l.brk).length;
   const curRemaining = () => run.running ? Math.max(0, run.remaining - (Date.now() - run.at)) : run.remaining;
@@ -460,11 +463,11 @@
     el.chip.textContent = l.brk ? `${l.min}분` : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
     el.chip.classList.toggle('break', !!l.brk);
     el.blindsNow.textContent = l.brk ? breakName(l) : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
-    el.vBlinds.textContent = l.brk ? '휴식' : `${fmtNum(l.sb)} / ${fmtNum(l.bb)}`;
+    el.vBlinds.innerHTML = l.brk ? '휴식' : blindsHtml(l);
     el.cellBlinds.classList.toggle('break', !!l.brk);
     el.vAnte.textContent = l.brk || !ante ? '—' : fmtNum(ante);
     const n = cfg.levels[run.idx + 1];
-    el.vNext.textContent = n ? blindsStr(n) : '마지막';
+    el.vNext.innerHTML = n ? blindsHtml(n) : '마지막';
     el.cellNext.classList.toggle('break', !!(n && n.brk));
     el.playBtn.textContent = run.running ? '일시정지' : (curRemaining() <= 0 ? '다시 시작' : '시작');
     el.playBtn.classList.toggle('soft', run.running); el.playBtn.classList.toggle('primary', !run.running);
