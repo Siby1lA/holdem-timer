@@ -63,10 +63,12 @@
     color-scheme: dark;
   }
 
+  /* The page never scrolls: it is sized to the screen so nothing slides under the iOS status bar (which iOS would blur). */
+  html { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
   html, body { height: 100%; }
   body {
     margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body);
-    overflow-x: hidden; overflow-y: auto; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
     touch-action: manipulation; line-height: 1.4;
   }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
@@ -74,8 +76,8 @@
   .num { font-family: var(--num); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
   .app {
-    min-height: 100%; box-sizing: border-box;
-    display: grid; grid-template-rows: auto 1fr auto; gap: 12px;
+    height: 100%; box-sizing: border-box;
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px;
     padding-block: 12px calc(16px + var(--safe-b));
     padding-left: max(16px, env(safe-area-inset-left, 0px), var(--safe-x));
     padding-right: max(16px, env(safe-area-inset-right, 0px), var(--safe-x));
@@ -94,22 +96,22 @@
   .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* ---- main ---- */
-  .main { min-height: 0; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 12px; }
+  .main { min-height: 0; display: grid; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
 
   .card { background: var(--card); border-radius: 24px; min-width: 0; container-type: inline-size; }
 
-  .clock { display: grid; grid-template-rows: auto 1fr auto; padding: 16px 18px 14px; gap: 8px; position: relative; }
+  .clock { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: 16px 18px 14px; gap: 8px; position: relative; min-height: 0; }
   .clock-head { display: flex; justify-content: space-between; align-items: center; }
   .label { color: var(--muted); font-size: 14px; font-weight: 500; }
   .state { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .state.run { color: var(--blue); } .state.run::before { background: var(--blue); }
   .state.urgent { color: var(--red); } .state.urgent::before { background: var(--red); }
-  .clock-body { display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; padding-block: 6px; }
-  .time { font-weight: 800; font-size: clamp(48px, 16cqw, 140px); line-height: 1; letter-spacing: -0.04em; }
+  .clock-body { display: grid; place-items: center; align-content: center; gap: 6px; text-align: center; padding-block: 4px; container-type: size; min-height: 0; }
+  .time { font-weight: 800; font-size: clamp(32px, min(16cqw, 58cqh), 140px); line-height: 1; letter-spacing: -0.04em; }
   .time.warn { color: var(--red); }
   .clock.paused .time { color: var(--fg-2); }
-  .blinds-now { font-size: clamp(18px, 6cqw, 40px); font-weight: 700; letter-spacing: -0.02em; }
+  .blinds-now { font-size: clamp(14px, min(6cqw, 22cqh), 40px); font-weight: 700; letter-spacing: -0.02em; }
   .blinds-now small { font-size: .55em; color: var(--muted); font-weight: 600; margin-left: .4em; }
   .bar { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 520px); justify-self: center; }
   .bar i { display: block; height: 100%; width: 100%; background: var(--blue); border-radius: 999px; transition: width .25s linear, background .2s; }
@@ -128,11 +130,13 @@
   .btn:disabled { opacity: .4; }
 
   /* ---- shot clock ---- */
-  .shot { display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; }
+  .shot { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; padding: 18px 20px 16px; transition: background .2s; min-height: 0; }
   .shot.urgent { background: var(--red-weak); }
   .shot-head { display: flex; justify-content: space-between; align-items: center; }
-  .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; }
-  .shot-num { font-weight: 800; font-size: clamp(80px, 32cqw, 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); }
+  /* the shot body is a size container: its digits scale by the card's height as well as width, so the card never overflows */
+  .shot-body { display: grid; place-items: center; align-content: center; padding-block: 4px; container-type: size; min-height: 0; grid-template-rows: auto auto auto; }
+  .shot-num { font-weight: 800; font-size: clamp(40px, min(32cqw, 62cqh), 240px); line-height: 1; letter-spacing: -0.04em; color: var(--muted); }
+  @container (max-height: 120px) { .shot-hint { display: none; } }
   .shot.armed .shot-num { color: var(--fg); }
   .shot.urgent .shot-num { color: var(--red); animation: pulse .5s steps(2) infinite; }
   .shot-ring { height: 6px; border-radius: 999px; background: var(--track); overflow: hidden; width: min(100%, 360px); margin-top: 10px; }
@@ -246,8 +250,6 @@
     .bar { height: 6px; }
     .shot-num { font-size: min(34cqw, 70cqh); }
     .shot-ring { margin-top: 6px; }
-    .shot-body { grid-template-rows: auto auto auto; }
-    @container (max-height: 120px) { .shot-hint { display: none; } }
     .btn { height: 44px; font-size: 15px; }
     .info { gap: 10px; grid-template-columns: 1.3fr .9fr 1.2fr; }
     .cell { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px; border-radius: 14px; }
