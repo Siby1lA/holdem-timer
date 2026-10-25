@@ -366,7 +366,7 @@
       <button class="btn outline" id="addBrkBtn">+ 브레이크 추가</button>
     </div>
 
-    <p class="note">설정은 이 기기의 브라우저에만 저장돼요. 소리는 샷클락 10초부터 매초(마지막 3초는 두 번)·종료, 레벨 1분 전·종료, 시작·타임칩 때 나요. 스피커 아이콘을 누르면 테스트음, 길게 누르면 끄기/켜기예요. 아이폰은 측면 무음 스위치가 켜져 있으면 소리가 안 나요.</p>
+    <p class="note">설정은 이 기기의 브라우저에만 저장돼요. 소리는 샷클락 10초부터 매초(마지막 3초는 두 번)·종료, 레벨 1분 전·종료, 시작·타임칩 때 나요. 스피커 아이콘을 누르면 테스트음, 길게 누르면 끄기/켜기예요. 아이폰 무음 모드에서도 소리가 나도록 해놨는데, 안 들리면 화면을 한 번 터치하고 볼륨 버튼을 올려 보세요.</p>
     <button class="text-btn" id="resetDefaultsBtn" style="justify-self:center">기본값으로 되돌리기</button>
   </div>
   <div class="sheet-foot">
@@ -409,8 +409,26 @@
 
   // ---------- audio ----------
   let ac = null;
+  // iOS mutes Web Audio under the silent switch but not <audio> media playback: looping a silent clip
+  // started from a tap flips the page's audio session to "playback", so the beeps play in silent mode too.
+  let silentEl = null;
+  function unlockSilentMode() {
+    if (silentEl || !/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
+    try {
+      const sr = 8000, n = 2000, buf = new Uint8Array(44 + n), dv = new DataView(buf.buffer);
+      const str = (o, s) => { for (let i = 0; i < s.length; i++) buf[o + i] = s.charCodeAt(i); };
+      str(0, 'RIFF'); dv.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); dv.setUint32(16, 16, true);
+      dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, sr, true); dv.setUint32(28, sr, true);
+      dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); str(36, 'data'); dv.setUint32(40, n, true); buf.fill(128, 44);
+      const el = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })));
+      el.loop = true; el.setAttribute('playsinline', ''); el.preload = 'auto';
+      silentEl = el;
+      el.play().catch(() => { silentEl = null; });
+    } catch { silentEl = null; }
+  }
   function audio() {
     if (!cfg.sound) return null;
+    unlockSilentMode();
     try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch { return null; }
   }
   function beep(freq = 880, dur = 0.12, when = 0, gain = 0.25, type = 'sine') {
@@ -608,7 +626,7 @@
     if (soundHeld) return;
     if (!cfg.sound) { cfg.sound = true; save(KEY_CFG, cfg); renderStatic(); }
     audio(); sfx.test();
-    toast(/iPhone|iPad/.test(navigator.userAgent) ? '테스트음 · 안 들리면 무음 스위치를 확인하세요' : '테스트음 재생');
+    toast(/iPhone|iPad/.test(navigator.userAgent) ? '테스트음 · 안 들리면 볼륨 버튼을 올려 보세요' : '테스트음 재생');
   });
   el.fsBtn.addEventListener('click', async () => {
     const d = document.documentElement;
