@@ -150,11 +150,17 @@
   html:root[data-skin="holdem"] .switch i::after { background: linear-gradient(180deg, #fff, #f1e7d1); box-shadow: 0 1px 3px rgba(40,6,20,.35), inset 0 -1px 0 rgba(120,80,60,.15); }
   html:root[data-skin="holdem"] .text-btn, html:root[data-skin="holdem"] .title h1, html:root[data-skin="holdem"] .sheet-head h2, html:root[data-skin="holdem"] .group-title h3 { text-shadow: 0 1px 2px rgba(30,3,15,.5); }
 
-  html, body { height: 100%; }
+  /* No rubber-band scrolling: the document is pinned to the screen (iOS only bounces the document scroller),
+     and <body> is the real scroll area. When the content fits there is nothing to scroll, so nothing bounces;
+     on small screens body still scrolls, with overscroll-behavior keeping the ends from bouncing on iOS 16+.
+     Pinning html also fixes the old "page scrolls by the safe-area padding" wobble: the border box is the viewport. */
+  html { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
+  body { height: 100%; }
   html { background: var(--bg-image), var(--bg); } /* on the root so the canvas carries the gradient without background-attachment: fixed (iOS ignores it) */
   body {
     margin: 0; background: transparent; color: var(--fg); font-family: var(--body);
-    overflow-x: hidden; overflow-y: auto; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: none; -webkit-overflow-scrolling: touch;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
     touch-action: manipulation; line-height: 1.4;
   }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
@@ -269,7 +275,7 @@
   .sheet-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg-bg); }
   .text-btn { color: var(--fg-2); font-weight: 600; font-size: 15px; padding: 8px 4px; }
   .sheet .text-btn { color: var(--fg-bg); opacity: .85; } /* sits on the ground, not in a card */
-  .sheet-body { overflow: auto; min-height: 0; display: grid; gap: 14px; align-content: start; padding-bottom: 16px; }
+  .sheet-body { overflow: auto; min-height: 0; display: grid; gap: 14px; align-content: start; padding-bottom: 16px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .group { background: var(--card-image), var(--card); border-radius: 20px; padding: 6px 18px; box-shadow: var(--card-shadow); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; border-top: 1px solid var(--line); }
   .row:first-child { border-top: 0; }
